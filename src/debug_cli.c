@@ -39,10 +39,10 @@ void debug_cli_init(void) {
     SEGGER_RTT_ConfigUpBuffer(0, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
 
     SEGGER_RTT_WriteString(0,
-    "Firmware for an over-engineered coin launcher                              \
-    Copyright (C) 2021-present Andrew Green                                     \
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.  \
-    This is free software, and you are welcome to redistribute it               \
+    "SIDFLC (Smartphone Interfaced Device For Launching Coins)\n                  \
+    Copyright (C) 2021-present Andrew Green\n                                     \
+    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.\n  \
+    This is free software, and you are welcome to redistribute it\n               \
     under certain conditions; type `show c' for details.\n\n");
 }
 
