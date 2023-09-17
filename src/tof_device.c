@@ -164,6 +164,10 @@ void tof_handle_config_cmd(config_cmd_handler_t cmd_handler){
     device.config_pending = false;
 }
 
+/**
+ * Handles configuration commands for getting/storing external data.
+ * User can stored any uint32_t data up to an index id < MAX_STORAGE_DATA_BUFF_SIZE 
+ */
 static void config_cmd_ext_handler(void) {
     uint8_t id = device.config_cmd.id;
     uint8_t cmd = device.config_cmd.cmd;
@@ -171,7 +175,7 @@ static void config_cmd_ext_handler(void) {
 
     device.config_cmd.status = CONFIG_STAT_OK;
 
-    // If configuration id is not in list then exit function
+    // If configuration id is not in list or index not allowed then exit function
     if (id >= MAX_STORAGE_DATA_BUFF_SIZE && cmd != CONFIG_CMD_STORE) {
         device.config_cmd.status = CONFIG_STAT_NA;
         return;
