@@ -9,11 +9,9 @@ Generate Private-Public Key Pair:
 Navigate to a folder of your choice for storing the private-public key pair files.
 With the nrfutil.exe run the commands:
 nrfutil keys generate private.key
-nrfutil keys display --key pk --format code private.key --out_file public_key.c
-
+nrfutil keys display --key pk --format code private.key --out_file public_key.c  
 * STEP 2
-Place public_key.c in the src folder of the bootloader project and compile.
-
+Place public_key.c in the src folder of the bootloader project and compile.  
 * STEP 3
 Run sidflc_pkg script to a generate the .zip package for doing over-the-air (OTA) device firmware update (DFU) updates to the device.
 
