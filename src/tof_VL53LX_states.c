@@ -628,15 +628,9 @@ static uint8_t set_config(snsr_data_t *sensor, uint8_t id, int32_t value) {
             break;
         case CONFIG_CAL_OFFSET_ZERO:
             status = VL53LX_PerformOffsetZeroDistanceCalibration(VL53LX(sensor));
-            if(!status){
-                notify_config_update(sensor, CONFIG_TIME_BUDGET);
-            }
             break;
         case CONFIG_CAL_OFFSET_VCSEL:
             status = VL53LX_PerformOffsetPerVcselCalibration(VL53LX(sensor), value);
-            if(!status){
-                notify_config_update(sensor, CONFIG_TIME_BUDGET);
-            }
             break;
         case CONFIG_CAL_XTALK:
             status = VL53LX_PerformXTalkCalibration(VL53LX(sensor));

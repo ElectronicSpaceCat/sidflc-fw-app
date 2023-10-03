@@ -111,7 +111,7 @@
 #define BOOTLOADER_SETTINGS_LOC         0x0007F000                              /**< Location in flash where the bootloader settings starts..should match the bootloader's linker map */
 
 /** Device advertising name */
-#define DEVICE_NAME                     "HCLD"                                  /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "SIDFLC"                                  /**< Name of device. Will be included in the advertising data. */
 
 /** @defgroup ble_dis_config Configuration for Device Information Service. @{ */
 #define BLE_DIS_MANUFACTURER_NAME       "GreenTech"                             /**< Manufacturer Name String. */
