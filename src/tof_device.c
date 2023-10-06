@@ -103,7 +103,7 @@ void tof_device_uninit(void) {
 }
 
 void config_cmd_message(config_cmd_data_t* config_cmd){
-    NRF_LOG_INFO("<< trgt: %s, cmd: %s, cfg: %d, value: %d",
+    NRF_LOG_INFO(">> trgt: %s, cmd: %s, cfg: %d, value: %d",
             get_trgt_str(config_cmd->trgt),
             get_cmd_str(config_cmd->cmd),
             config_cmd->id,
@@ -111,7 +111,7 @@ void config_cmd_message(config_cmd_data_t* config_cmd){
 }
 
 void config_resp_message(config_cmd_data_t* config_cmd){
-    NRF_LOG_INFO(">> trgt: %s, cmd: %s, cfg: %d, value: %d, status: %s",
+    NRF_LOG_INFO("<< trgt: %s, cmd: %s, cfg: %d, value: %d, status: %s",
             get_trgt_str(config_cmd->trgt),
             get_cmd_str(config_cmd->cmd),
             config_cmd->id,

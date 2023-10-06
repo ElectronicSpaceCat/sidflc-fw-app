@@ -38,12 +38,11 @@ static char _buff[CHAR_BUFF_SIZE];
 void debug_cli_init(void) {
     SEGGER_RTT_ConfigUpBuffer(0, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
 
-    SEGGER_RTT_WriteString(0,
-    "SIDFLC (Smartphone Interfaced Device For Launching Coins)\n                  \
-    Copyright (C) 2021-present Andrew Green\n                                     \
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.\n  \
-    This is free software, and you are welcome to redistribute it\n               \
-    under certain conditions; type `show c' for details.\n\n");
+    SEGGER_RTT_WriteString(0, "SIDFLC (Smartphone Interfaced Device For Launching Coins)\n");
+    SEGGER_RTT_WriteString(0, "Copyright (C) 2021-present Andrew Green\n");
+    SEGGER_RTT_WriteString(0, "This program comes with ABSOLUTELY NO WARRANTY.\n");
+    SEGGER_RTT_WriteString(0, "This is free software, and you are welcome to redistribute it\n");
+    SEGGER_RTT_WriteString(0, "in accordance to the GPL-3.0 license.\n\n");
 }
 
 void debug_cli_process(void) {
@@ -102,15 +101,15 @@ void debug_cli_process(void) {
     // Get first token and process it
     if (!strcmp(token, "help")) {
         SEGGER_RTT_WriteString(0, "Commands:\n");
-        SEGGER_RTT_WriteString(0, "batt:print        batt - toggle batt sampling, batt:print - toggle debug\n");
-        SEGGER_RTT_WriteString(0, "rng:print         rng - toggle ranging, rng:print - toggle debug\n");
-        SEGGER_RTT_WriteString(0, "ble:tof|pwr:print debug ble:tof|pwr service\n");
-        SEGGER_RTT_WriteString(0, "snsr:id           snsr - get snsr id, snsr:id select snsr\n");
-        SEGGER_RTT_WriteString(0, "ref:value         ref - get ref dist, ref:value - set ref dist\n");
+        SEGGER_RTT_WriteString(0, "batt:print             batt - toggle batt sampling, batt:print - toggle debug\n");
+        SEGGER_RTT_WriteString(0, "rng:print              rng - toggle ranging, rng:print - toggle debug\n");
+        SEGGER_RTT_WriteString(0, "ble:tof|pwr:print      debug ble:tof|pwr service\n");
+        SEGGER_RTT_WriteString(0, "snsr:id                snsr - get snsr id, snsr:id select snsr\n");
+        SEGGER_RTT_WriteString(0, "ref:value              ref - get ref dist, ref:value - set ref dist\n");
         SEGGER_RTT_WriteString(0, "cfg:trgt:cmd:id:value  send config cmd, -cmds for cmd list, -trgts for trgt list\n");
-        SEGGER_RTT_WriteString(0, "cfg:all           get all configs\n");
-        SEGGER_RTT_WriteString(0, "rst:s|sf|d        reset: s - sensor, sf - sensor factory, d - device\n");
-        SEGGER_RTT_WriteString(0, "shutdown          shutdown device\n");
+        SEGGER_RTT_WriteString(0, "cfg:all                get all configs\n");
+        SEGGER_RTT_WriteString(0, "rst:s|sf|d             reset: s - sensor, sf - sensor factory, d - device\n");
+        SEGGER_RTT_WriteString(0, "shutdown               shutdown device\n");
         return;
     }
     else if (!strcmp(token, "-cmds")) {
