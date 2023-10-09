@@ -117,7 +117,7 @@
 #define BLE_DIS_MANUFACTURER_NAME       "GreenTech"                             /**< Manufacturer Name String. */
 #define BLE_DIS_MODEL_NUMBER            "V24"                                   /**< Model Number String. */ // TODO AG - Should read this from flash value
 #define BLE_DIS_SERIAL_NUMBER           "12345"                                 /**< Serial Number String. */
-#define BLE_DIS_HW_REVISION             "V5.0"                                  /**< Hardware Revision String. */
+#define BLE_DIS_HW_REVISION             "V6.0"                                  /**< Hardware Revision String. */
 #define BLE_DIS_SW_REVISION             "1.0.0"                                 /**< Software Revision String. */
 //#define BLE_DIS_FW_REVISION           "-.-.-"                                 /**< Firmware Revision String. Note: This is located in the bootloader settings */
 #define BLE_DIS_MANUFACTURER_ID         0x0000000000                            /**< Manufacturer ID for System ID. */

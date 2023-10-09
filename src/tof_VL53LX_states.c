@@ -532,7 +532,7 @@ static void config_cmd_handler(void) {
                 value = device->sensor->config[id].value_default;
             }
             break;
-        case CONFIG_CMD_STORE: // Note: Currently only stores all configurations, not done singly
+        case CONFIG_CMD_STORE: // Note: Currently stores all configurations, not individually
             // Get cal data
             VL53LX_GetCalibrationData(VL53LX(device->sensor), &VL53LX_DATA(device->sensor)->cal);
             // Store the cal data
@@ -628,9 +628,15 @@ static uint8_t set_config(snsr_data_t *sensor, uint8_t id, int32_t value) {
             break;
         case CONFIG_CAL_OFFSET_ZERO:
             status = VL53LX_PerformOffsetZeroDistanceCalibration(VL53LX(sensor));
+            if(!status){
+                notify_config_update(sensor, CONFIG_TIME_BUDGET);
+            }
             break;
         case CONFIG_CAL_OFFSET_VCSEL:
             status = VL53LX_PerformOffsetPerVcselCalibration(VL53LX(sensor), value);
+            if(!status){
+                notify_config_update(sensor, CONFIG_TIME_BUDGET);
+            }
             break;
         case CONFIG_CAL_XTALK:
             status = VL53LX_PerformXTalkCalibration(VL53LX(sensor));
@@ -721,7 +727,11 @@ static uint8_t load_config(snsr_data_t *sensor, uint8_t id) {
 
 static void notify_config_update(snsr_data_t *sensor, uint8_t config_id){
     // Only notify of configuration updates when sensor is ready
-    if(TOF_STATUS_READY != sensor->status){
+    if (TOF_STATUS_READY != sensor->status){
+        return;
+    }
+
+    if (config_id >= device->sensor->num_configs) {
         return;
     }
 
@@ -735,9 +745,11 @@ static void notify_config_update(snsr_data_t *sensor, uint8_t config_id){
 
     // Reload the configuration and set status
     if (!load_config(sensor, config_id)) {
+    	dev.config_cmd.value = sensor->config[config_id].value;
         dev.config_cmd.status = CONFIG_STAT_UPDATED;
     }
     else{
+        dev.config_cmd.value = INVALID_CONFIG_VALUE;
         dev.config_cmd.status = CONFIG_STAT_ERROR;
     }
 
