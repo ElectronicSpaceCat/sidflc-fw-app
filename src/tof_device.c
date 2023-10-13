@@ -157,7 +157,7 @@ void tof_handle_config_cmd(config_cmd_handler_t cmd_handler){
     // Print the response message
     config_resp_message(&device.config_cmd);
     // Notify the user
-    tof_data_callback(&device, TOF_DATA_CONFIG);
+    tof_data_callback(&device, TOF_DATA_CONFIG_COMMAND);
     // Reset the cmd target
     device.config_cmd.trgt = CONFIG_TRGT_NA;
     // Reset the pending flag

@@ -73,7 +73,8 @@ typedef enum {
     TOF_DATA_STATUS,
     TOF_DATA_SAMPLING_ENABLED,
     TOF_DATA_DISTANCE,
-    TOF_DATA_CONFIG,
+	TOF_DATA_CONFIG_COMMAND,
+	TOF_DATA_CONFIG_UPDATED,
     TOF_DATA_RESET,
     NUM_TOF_DATA_TYPE,
     TOF_DATA_NA
@@ -161,6 +162,7 @@ struct device_s{
     uint16_t distance_mm_ref; // ranging distance reference (for debugging)
     uint16_t sample_count; // sample count, used in debug
     config_cmd_data_t config_cmd; // configuration command data
+    config_cmd_data_t config_cmd_updated; // configuration command data
     uint8_t config_pending;
     reset_cmd_t reset_cmd; // reset command
     snsr_data_t sensors[NUM_TOF_SNSR]; // sensors

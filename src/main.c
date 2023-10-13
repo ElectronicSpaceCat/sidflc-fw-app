@@ -144,7 +144,7 @@
 
 // NOTE AG - Setting the Max intervals lower seems to help
 //           with the data through put for this application
-//           If streaming then larger would be required
+//           If streaming, then larger would be required.
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(7.5, UNIT_1_25_MS)        /**< Minimum acceptable connection interval. */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(50, UNIT_1_25_MS)         /**< Maximum acceptable connection interval.  */
 #define SLAVE_LATENCY                   0                                       /**< Slave latency. */
@@ -284,19 +284,22 @@ void tof_data_callback(device_t *device, snsr_data_type_t type) {
         case TOF_DATA_STATUS:
             tof_status_characteristic_update(&m_tof, &device->sensor->status);
             break;
-        case TOF_DATA_CONFIG:
+        case TOF_DATA_CONFIG_COMMAND:
             // Update configuration characteristic
             tof_config_characteristic_update(&m_tof, &device->config_cmd);
+            break;
+        case TOF_DATA_CONFIG_UPDATED:
+            // Update configuration characteristic
+            tof_config_characteristic_update(&m_tof, &device->config_cmd_updated);
             break;
         case TOF_DATA_SAMPLING_ENABLED:
             // Update tof enable_sampling characteristic
             tof_ranging_enable_characteristic_update(&m_tof, &device->is_ranging_enabled);
             break;
-        case TOF_DATA_RESET: {
+        case TOF_DATA_RESET:
             // Update tof reset command characteristic
             tof_reset_characteristic_update(&m_tof, &device->reset_cmd);
             break;
-        }
         default:
             break;
     }

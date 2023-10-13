@@ -132,9 +132,7 @@ SRC_FILES += \
 INC_FOLDERS += \
 	src \
 	config \
-	$(VL53L4CX_ROOT)/core/src \
 	$(VL53L4CX_ROOT)/core/inc \
-	$(VL53L4CX_ROOT)/platform/src \
 	$(VL53L4CX_ROOT)/platform/inc \
 	$(SDK_ROOT)/components \
 	$(SDK_ROOT)/components/boards \

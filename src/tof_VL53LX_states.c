@@ -84,7 +84,7 @@ static uint8_t set_config(snsr_data_t* sensor, uint8_t id, int32_t value);
 static uint8_t load_config(snsr_data_t* sensor, uint8_t id);
 static void init_config_types(snsr_data_t *sensor);
 static const char* get_config_str(uint8_t config);
-static void notify_config_update(snsr_data_t *sensor, uint8_t config_id);
+static void notify_config_update(uint8_t config_id);
 
 static int32_t cfg_buff[MAX_CONFIG_BUFF_SIZE];
 
@@ -617,31 +617,31 @@ static uint8_t set_config(snsr_data_t *sensor, uint8_t id, int32_t value) {
         case CONFIG_CAL_REFSPAD:
             status = VL53LX_PerformRefSpadManagement(VL53LX(sensor));
             if(!status){
-                notify_config_update(sensor, CONFIG_TIME_BUDGET);
+                notify_config_update(CONFIG_TIME_BUDGET);
             }
             break;
         case CONFIG_CAL_OFFSET_SIMPLE:
             status = VL53LX_PerformOffsetSimpleCalibration(VL53LX(sensor), value);
             if(!status){
-                notify_config_update(sensor, CONFIG_TIME_BUDGET);
+                notify_config_update(CONFIG_TIME_BUDGET);
             }
             break;
         case CONFIG_CAL_OFFSET_ZERO:
             status = VL53LX_PerformOffsetZeroDistanceCalibration(VL53LX(sensor));
             if(!status){
-                notify_config_update(sensor, CONFIG_TIME_BUDGET);
+                notify_config_update(CONFIG_TIME_BUDGET);
             }
             break;
         case CONFIG_CAL_OFFSET_VCSEL:
             status = VL53LX_PerformOffsetPerVcselCalibration(VL53LX(sensor), value);
             if(!status){
-                notify_config_update(sensor, CONFIG_TIME_BUDGET);
+                notify_config_update(CONFIG_TIME_BUDGET);
             }
             break;
         case CONFIG_CAL_XTALK:
             status = VL53LX_PerformXTalkCalibration(VL53LX(sensor));
             if(!status){
-                notify_config_update(sensor, CONFIG_TIME_BUDGET);
+                notify_config_update(CONFIG_TIME_BUDGET);
             }
             break;
         default:
@@ -725,9 +725,9 @@ static uint8_t load_config(snsr_data_t *sensor, uint8_t id) {
     return status;
 }
 
-static void notify_config_update(snsr_data_t *sensor, uint8_t config_id){
+static void notify_config_update(uint8_t config_id){
     // Only notify of configuration updates when sensor is ready
-    if (TOF_STATUS_READY != sensor->status){
+    if (TOF_STATUS_READY != device->sensor->status){
         return;
     }
 
@@ -735,26 +735,23 @@ static void notify_config_update(snsr_data_t *sensor, uint8_t config_id){
         return;
     }
 
-    // Dummy device to pass to the callback
-    device_t dev;
-
     // Set the configuration command data
-    dev.config_cmd.trgt = CONFIG_TRGT_SNSR;
-    dev.config_cmd.cmd = CONFIG_CMD_GET;
-    dev.config_cmd.id = config_id;
+    device->config_cmd_updated.trgt = CONFIG_TRGT_SNSR;
+    device->config_cmd_updated.cmd = CONFIG_CMD_GET;
+    device->config_cmd_updated.id = config_id;
 
     // Reload the configuration and set status
-    if (!load_config(sensor, config_id)) {
-    	dev.config_cmd.value = sensor->config[config_id].value;
-        dev.config_cmd.status = CONFIG_STAT_UPDATED;
+    if (!load_config(device->sensor, config_id)) {
+    	device->config_cmd_updated.value = device->sensor->config[config_id].value;
+    	device->config_cmd_updated.status = CONFIG_STAT_UPDATED;
     }
     else{
-        dev.config_cmd.value = INVALID_CONFIG_VALUE;
-        dev.config_cmd.status = CONFIG_STAT_ERROR;
+    	device->config_cmd_updated.value = INVALID_CONFIG_VALUE;
+    	device->config_cmd_updated.status = CONFIG_STAT_ERROR;
     }
 
     // Notify
-    tof_data_callback(&dev, TOF_DATA_CONFIG);
+    tof_data_callback(device, TOF_DATA_CONFIG_UPDATED);
 }
 
 static void init_config_types(snsr_data_t *sensor){
