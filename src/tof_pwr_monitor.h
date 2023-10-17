@@ -39,7 +39,7 @@ typedef enum{
   NUM_TOF_PWR_DATA_TYPE
 }tof_pwr_data_type_t;
 
-ret_code_t tof_pwr_init(void);
+void tof_pwr_init(void);
 void tof_pwr_uninit(void);
 void tof_pwr_batt_sample_voltage(void);
 void tof_pwr_batt_sample_voltage_delayed(uint32_t delay_time_ms);

@@ -35,28 +35,31 @@
 # --application-version 1
 # --application-version-string "1.0.0"  <-- currently used for this project
 
+# Proj Name Prefix
+PROJ_NAME="sidflc"
+
 # Change path below to point to the nrfutil executable
-NRF_UTIL="../nrfutil"
+NRF_UTIL="../../nrfutil"
 
 # Change path below to point to the nRF softdevice (SD) hex file
-NRF_SD="../nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/hex/s112_nrf52_7.2.0_softdevice.hex"
+NRF_SD="../../nRF5_SDK_17.1.0_ddde560/components/softdevice/s112/hex/s112_nrf52_7.2.0_softdevice.hex"
 
-# Firmware location
-FW="../sidflc-fw-app/build/sidflc_fw_app.hex"
+# Applicaiton location
+FW="../../${PROJ_NAME}-fw-app/build/${PROJ_NAME}_fw_app.hex"
 
 # Bootloader location
-BL="../sidflc-fw-bootloader/build/sidflc_fw_bootloader.hex"
+BL="../../${PROJ_NAME}-fw-bootloader/build/${PROJ_NAME}_fw_bootloader.hex"
 
 # Output file name
-OUTPUT_NAME=prod_sidflc_fw
+OUTPUT_NAME="${PROJ_NAME}_fw_app_prod"
 
 VERSION="1.0.0"
 
-$NRF_UTIL settings generate --family NRF52 --application $FW --application-version-string $VERSION --bootloader-version 0 --bl-settings-version 2 bl_setting.hex
+$NRF_UTIL settings generate --family NRF52 --application ${FW} --application-version-string ${VERSION} --bootloader-version 0 --bl-settings-version 2 bl_setting.hex
 
-mergehex --merge bl_setting.hex $BL $NRF_SD --output temp_merge.hex
+mergehex --merge bl_setting.hex ${BL} ${NRF_SD} --output temp_merge.hex
 
-mergehex --merge temp_merge.hex $FW --output $OUTPUT_NAME.hex
+mergehex --merge temp_merge.hex ${FW} --output "../../${PROJ_NAME}-fw-app/${OUTPUT_NAME}.hex"
 
 rm bl_setting.hex
 rm temp_merge.hex

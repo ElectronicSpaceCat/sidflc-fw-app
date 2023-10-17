@@ -107,16 +107,20 @@ APP_TIMER_DEF(err_timeout_timer_id);
 
 static device_t* device = NULL;
 
-void vl53lx_init(uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin) {
-    if(!device){ // Since this can be called multiple times, only set it once
-        device = tof_device_get();
+error_t vl53lx_create(device_t* dev, uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin) {
+    if(NULL == device){ // Since this can be called multiple times, only set it once
+        device = dev;
     }
 
-    ASSERT(id >= NUM_TOF_SNSR);
+    if(id >= NUM_TOF_SNSR){
+    	return TOF_ERROR_SENSOR_INDEX_OOR;
+    }
 
     snsr_data_t* sensor = &(device->sensors[id]);
 
-    ASSERT(device->sensor);
+    if(NULL == sensor){
+    	return TOF_ERROR_NONE;
+    }
 
     snprintf(sensor->name, sizeof(sensor->name), "%s_%d", get_sensor_name_str(type), id);
 
@@ -132,7 +136,9 @@ void vl53lx_init(uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin) {
     // Note: Required if using multiple instances of same sensor type
     sensor->context = (void*)malloc(sizeof(sensor_data_t));
 
-    ASSERT(device->sensor->context);
+    if(NULL == device->sensor->context){
+    	return TOF_ERROR_SENSOR_CREATE;
+    }
 
     /* Configure XSHUT pin as output */
     nrf_gpio_cfg_output(sensor->pin_xshut);
@@ -142,7 +148,13 @@ void vl53lx_init(uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin) {
     /* Init the configuration types */
     init_config_types(sensor);
     /* Init the flash-data-storage if not already */
-    tof_fds_init();
+    if(tof_fds_init()){
+    	return TOF_ERROR_SENSOR_INIT;
+    }
+
+    NRF_LOG_INFO("%s created", sensor->name);
+
+    return TOF_ERROR_NONE;
 }
 
 static void err_timeout_timer_handler(void *p_context) {

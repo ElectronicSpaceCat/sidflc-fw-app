@@ -31,11 +31,13 @@
 
 static const nrfx_twim_t m_twi = NRFX_TWIM_INSTANCE(TWIM_INSTANCE_ID);
 static volatile uint8_t m_twi_xfer_active = false;
-static volatile int m_twi_xfer_error = 0;
+static volatile nrfx_twim_evt_type_t m_twi_xfer_evt = NRFX_TWIM_EVT_DONE;
 
-__STATIC_INLINE void error_handler(nrfx_twim_xfer_type_t xfrType, nrfx_twim_evt_type_t evt) {
+static ret_code_t map_evt_to_nrf_err(nrfx_twim_evt_type_t evt);
+
+__STATIC_INLINE void print_err_msg(nrfx_twim_xfer_type_t xfrType, nrfx_twim_evt_type_t evt) {
     NRF_LOG_INFO("ToF TWI xfer type: %d, event: %d", xfrType, evt);
-    m_twi_xfer_error = evt;
+    m_twi_xfer_evt = evt;
 }
 
 /**
@@ -51,9 +53,15 @@ static void twi_handler(nrfx_twim_evt_t const *p_event, void *p_context) {
         case NRFX_TWIM_EVT_DATA_NACK:
             break;
         case NRFX_TWIM_EVT_ADDRESS_NACK:
-            case NRFX_TWIM_EVT_OVERRUN:
-            case NRFX_TWIM_EVT_BUS_ERROR:
-            error_handler(p_event->xfer_desc.type, p_event->type);
+        case NRFX_TWIM_EVT_OVERRUN:
+        	print_err_msg(p_event->xfer_desc.type, p_event->type);
+        	break;
+        case NRFX_TWIM_EVT_BUS_ERROR:
+        	print_err_msg(p_event->xfer_desc.type, p_event->type);
+        	NRF_LOG_INFO("ToF TWI resetting");
+        	tof_twi_uninit();
+        	nrfx_twim_bus_recover(PIN_SCL, PIN_SDA);
+        	tof_twi_init();
             break;
         default:
             break;
@@ -71,9 +79,9 @@ int I2CWrite(uint8_t dev, uint8_t *buff, uint8_t len) {
 
     wfe(&m_twi_xfer_active);
 
-    if (m_twi_xfer_error) {
-        err_code = m_twi_xfer_error;
-        m_twi_xfer_error = false;
+    if (NRFX_TWIM_EVT_DONE != m_twi_xfer_evt) {
+        err_code = map_evt_to_nrf_err(m_twi_xfer_evt);
+        m_twi_xfer_evt = NRFX_TWIM_EVT_DONE;
     }
 
     return err_code;
@@ -88,9 +96,9 @@ int I2CRead(uint8_t dev, uint8_t *buff, uint8_t len) {
 
     wfe(&m_twi_xfer_active);
 
-    if (m_twi_xfer_error) {
-        err_code = m_twi_xfer_error;
-        m_twi_xfer_error = false;
+    if (NRFX_TWIM_EVT_DONE != m_twi_xfer_evt) {
+        err_code = map_evt_to_nrf_err(m_twi_xfer_evt);
+        m_twi_xfer_evt = NRFX_TWIM_EVT_DONE;
     }
 
     return err_code;
@@ -99,7 +107,7 @@ int I2CRead(uint8_t dev, uint8_t *buff, uint8_t len) {
 /**
  * @brief TWI initialization.
  */
-void tof_twi_init(void) {
+ret_code_t tof_twi_init(void) {
     ret_code_t err_code;
 
     const nrfx_twim_config_t twi_config = {
@@ -120,8 +128,27 @@ void tof_twi_init(void) {
     else {
         NRF_LOG_INFO("ToF TWI error");
     }
+
+    return err_code;
 }
 
-void tof_twi_uninit(void){
+ret_code_t tof_twi_uninit(void){
     nrfx_twim_uninit(&m_twi);
+    return NRF_SUCCESS;
+}
+
+static ret_code_t map_evt_to_nrf_err(nrfx_twim_evt_type_t evt){
+    switch(evt){
+		case NRFX_TWIM_EVT_DONE:
+			return NRFX_SUCCESS;
+		case NRFX_TWIM_EVT_ADDRESS_NACK:
+			return NRFX_ERROR_DRV_TWI_ERR_ANACK;
+		case NRFX_TWIM_EVT_DATA_NACK:
+			return NRFX_ERROR_DRV_TWI_ERR_DNACK;
+		case NRFX_TWIM_EVT_OVERRUN:
+			return NRFX_ERROR_DRV_TWI_ERR_OVERRUN;
+		case NRFX_TWIM_EVT_BUS_ERROR:
+		default:
+			return NRFX_ERROR_INTERNAL;
+    }
 }

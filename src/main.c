@@ -97,7 +97,7 @@
 
 /// Our stuff
 #include "tof_utils.h"
-#include "tof_state_machine.h"
+#include "tof_device.h"
 #include "tof_pwr_monitor.h"
 #include "ble_tof_service.h"
 #include "ble_pwr_service.h"
@@ -181,7 +181,7 @@ static void advertising_start(bool erase_bonds); /**< Forward declaration of adv
 static void whitelist_set(pm_peer_id_list_skip_t skip);
 static void identities_set(pm_peer_id_list_skip_t skip);
 
-static bool tof_sm_run_flag = false;
+static bool tof_device_process_flag = false;
 
 // Char buffer for the firmware version string
 static char fw_version_str[15];
@@ -227,7 +227,7 @@ static void ble_dfu_evt_handler(ble_dfu_buttonless_evt_type_t event);
 // This is a timer event handler for the tof sensors
 static void tof_timer_timeout_handler(void *p_context) {
     UNUSED_PARAMETER(p_context);
-    tof_sm_run_flag = true;
+    tof_device_process_flag = true;
 }
 
 // This is a timer event handler for the battery voltage sampling
@@ -579,7 +579,7 @@ static bool app_shutdown_handler(nrf_pwr_mgmt_evt_t event) {
 		uint32_t err_code;
 
 		// Disable rng sensors
-		tof_sm_uninit();
+		tof_device_uninit();
 		// Disable pwr monitor
 		tof_pwr_uninit();
 
@@ -1070,10 +1070,12 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
             app_timer_start(m_led_timer_id, LED_CON_TOGGLE_TIMER_INTERVAL, NULL);
             break;
 
-        case BLE_GAP_EVT_DISCONNECTED:
-            NRF_LOG_INFO("BLE Disconnected")
+        case BLE_GAP_EVT_DISCONNECTED: {
+        	/** see @ref ./components/softdevice/s112/headers/ble_hci.h for reasons */
+        	uint16_t reason = p_ble_evt->evt.gap_evt.params.disconnected.reason;
+            NRF_LOG_INFO("BLE Disconnected, reason: %d", reason)
             break;
-
+        }
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST: {
             NRF_LOG_DEBUG("BLE PHY update request");
             ble_gap_phys_t const phys = { .rx_phys = BLE_GAP_PHY_AUTO, .tx_phys = BLE_GAP_PHY_AUTO, };
@@ -1302,20 +1304,20 @@ static void power_management_init(void) {
  */
 static void idle_state_handle(void) {
 	// ToF loop
-	if (tof_sm_run_flag) {
-	    tof_sm_run_flag = false;
-		tof_sm_run();
+	// Note: Flag used to not have conflicting app timer usage.
+	//       The device handler uses the timer for i2c and error states
+	//       and the timer is used to run this function at a specified rate.
+	//       The timer cannot be called while already inside a timer event.
+	if (tof_device_process_flag) {
+	    tof_device_process_flag = false;
+		tof_device_process();
 	}
-
     // Process configuration command
 	tof_process_config_cmd();
-
 	// Process the tof_service hvx indications queue if not empty
 	tof_hvx_gatts_queue_process();
-
 	// Check debug commands
 	debug_cli_process();
-
 	// Process logs before idle
 	if (!NRF_LOG_PROCESS()){
 		nrf_pwr_mgmt_run();
@@ -1340,11 +1342,13 @@ int main(void) {
 	// Turn on LED when system online
 	nrf_gpio_pin_set(PIN_PWR_ON_LED);
 
+	debug_cli_init();
+
 	power_management_init();
 	ble_stack_init();
 
 	tof_pwr_init();
-	tof_sm_init();
+	tof_device_init();
 
 	peer_manager_init();
 	gap_params_init();
@@ -1362,8 +1366,6 @@ int main(void) {
     // Check if erase bonds flag was set
 	bool delete_bonds = delete_bonds_flag_get();
 	advertising_start(delete_bonds);
-
-	debug_cli_init();
 
 	// Enter main loop.
 	for (;;) {

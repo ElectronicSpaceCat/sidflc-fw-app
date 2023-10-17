@@ -22,7 +22,6 @@
 #include "ble_tof_service.h"
 #include "ble_srv_common.h"
 #include "app_error.h"
-#include "tof_state_machine.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"

@@ -25,7 +25,6 @@ SRC_FILES += \
 	$(PROJ_DIR)/src/debug_cli.c \
 	$(PROJ_DIR)/src/tof_VL53LX_states.c \
 	$(PROJ_DIR)/src/tof_pwr_monitor.c \
-	$(PROJ_DIR)/src/tof_state_machine.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api_calibration.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api_core.c \

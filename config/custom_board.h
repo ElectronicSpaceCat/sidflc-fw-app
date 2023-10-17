@@ -40,7 +40,7 @@ extern "C" {
 #define PIN_CHARGE_STATUS               (22)
 #define PIN_BM                          (3)
 #define PIN_BM_EN                       (19)
-#elif
+#else
 #error No pin mapping defined for this board!
 #endif
 

@@ -25,7 +25,7 @@
 #include "SEGGER_RTT.h"
 #include "string.h"
 #include "stdbool.h"
-#include "tof_state_machine.h"
+#include "tof_device.h"
 #include "tof_pwr_monitor.h"
 #include "ble_tof_service.h"
 #include "ble_pwr_service.h"

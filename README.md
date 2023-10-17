@@ -22,6 +22,11 @@ https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/sd
 ARM toolchain Version 10.3-2021.10 (the latest verison would likely work too)  
 https://developer.arm.com/downloads/-/gnu-rm
 
+If using the Linux install you may need to install libncurses5  
+```
+apt install libncurses5
+```
+
 nrf-command-line-tools required to merge hex files, downloaded at:  
 https://www.nordicsemi.com/Products/Development-tools/nrf-command-line-tools/download
 

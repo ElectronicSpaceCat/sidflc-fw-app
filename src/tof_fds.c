@@ -116,7 +116,7 @@ static void fds_evt_handler(fds_evt_t const *p_fds_evt){
     m_tof_dfs_active = false;
 }
 
-void tof_fds_init(void) {
+ret_code_t tof_fds_init(void) {
     ret_code_t status = NRF_SUCCESS;
 
     if(!fds_registered){
@@ -137,6 +137,8 @@ void tof_fds_init(void) {
             fds_inited = true;
         }
     }
+
+    return status;
 }
 
 ret_code_t tof_fds_write(uint16_t file_id, uint16_t record_key,uint8_t* data, size_t data_len) {
@@ -148,7 +150,7 @@ ret_code_t tof_fds_write(uint16_t file_id, uint16_t record_key,uint8_t* data, si
     record.key = lrecord_key;
     record.data.p_data = data;
     // The following calculation takes into account any eventual remainder of the division
-    record.data.length_words = (data_len + 3) / 4;;
+    record.data.length_words = (data_len + 3) / 4;
 
     NRF_LOG_INFO("FDS: writing %d bytes to file 0x%X rec 0x%X", data_len, lfile_id, lrecord_key);
 

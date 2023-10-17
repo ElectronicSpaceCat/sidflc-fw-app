@@ -22,7 +22,7 @@
 
 #define I2C_FREQ NRF_TWIM_FREQ_100K
 
-void tof_twi_init(void);
-void tof_twi_uninit(void);
+ret_code_t tof_twi_init(void);
+ret_code_t tof_twi_uninit(void);
 
 #endif /* TOF_TWI_H */

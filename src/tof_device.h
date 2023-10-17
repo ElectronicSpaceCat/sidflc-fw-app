@@ -50,7 +50,12 @@ typedef enum {
 typedef enum {
     TOF_ERROR_NONE = 0,
     TOF_ERROR_NO_COMMS,
-    TOF_ERROR_BOOT_CONFIG,
+	TOF_ERROR_FDS_INIT,
+	TOF_ERROR_FDS_INTERNAL,
+	TOF_ERROR_SENSOR_INDEX_OOR,
+	TOF_ERROR_SENSOR_CREATE,
+	TOF_ERROR_SENSOR_INIT,
+	TOF_ERROR_SENSOR_INTERNAL,
     NUM_TOF_ERRORS,
     TOF_ERROR_NA
 } error_t;
@@ -188,6 +193,11 @@ void tof_device_init(void);
 void tof_device_uninit(void);
 
 /**
+ * Process the device handler
+ */
+void tof_device_process(void);
+
+/**
  * Select sensor
  * @param snsr_id
  */
@@ -197,7 +207,7 @@ void tof_sensor_select(sensor_id_t snsr_id);
  * Get the device data
  * @return
  */
-device_t* tof_device_get(void);
+const device_t* tof_device_get(void);
 
 /**
  * Sends a configuration request
@@ -269,10 +279,22 @@ const char* get_sensor_name_str(uint8_t snsr_type);
 const char* get_cmd_str(uint8_t cmd);
 
 /**
+ * Get the command target name
+ * @return string
+ */
+const char* get_trgt_str(uint8_t trgt);
+
+/**
  * Get the command status
  * @return string
  */
 const char* get_status_str(uint8_t status);
+
+/**
+ * Get the error status
+ * @return string
+ */
+const char* get_error_str(uint8_t error);
 
 /**
  * Log output the configuration command

@@ -102,6 +102,7 @@ static void input_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t ac
 static void test_pin_pwr_on_status(void);
 static void test_pin_charge_status(void);
 static void test_pin_low_voltage_shutdown(void);
+static const char* get_batt_status_str(uint8_t status);
 static void saadc_event_handler(nrf_drv_saadc_evt_t const * p_event);
 static void adc_configure(void);
 //static uint8_t batt_mvolts_to_percent(const uint16_t mvolts);
@@ -112,7 +113,7 @@ static void delay_timer_handler(void *p_context) {
   tof_pwr_batt_sample_voltage();
 }
 
-ret_code_t tof_pwr_init(void){
+void tof_pwr_init(void){
   ret_code_t err_code;
 
   // PB_OUT used to detect when the power button is pressed
@@ -169,8 +170,6 @@ ret_code_t tof_pwr_init(void){
   test_pin_pwr_on_status();
   test_pin_charge_status();
   test_pin_low_voltage_shutdown();
-
-  return err_code;
 }
 
 void tof_pwr_uninit(void){
@@ -226,28 +225,8 @@ void tof_pwr_batt_status_update(void) {
         prev_batt_status = m_pwr_mngt_data.batt_status;
         // Callback for the application to call tasks such as BLE service characteristic updates
         tof_pwr_data_callback(&m_pwr_mngt_data, TOF_PWR_DATA_BATT_STATUS);
-
         // Print batt status message
-        switch(m_pwr_mngt_data.batt_status){
-            case TOF_BATT_VERY_LOW:
-                NRF_LOG_INFO("SYS batt voltage very low, shutdown imminent");
-              break;
-            case TOF_BATT_CHARGING:
-                NRF_LOG_INFO("SYS batt charging");
-              break;
-            case TOF_BATT_CHARGING_COMPLETE:
-                NRF_LOG_INFO("SYS batt charging complete");
-              break;
-            case TOF_BATT_LOW:
-                NRF_LOG_INFO("SYS batt voltage low");
-              break;
-            case TOF_BATT_OK:
-                NRF_LOG_INFO("SYS batt voltage ok");
-              break;
-            default:
-                NRF_LOG_INFO("SYS batt status unknown");
-                break;
-        }
+        NRF_LOG_INFO("SYS batt %s", get_batt_status_str(m_pwr_mngt_data.batt_status));
     }
 }
 
@@ -299,9 +278,9 @@ static void adc_configure(void)
     if(SAADC_BURST_MODE)
     {
         channel_config.burst = NRF_SAADC_BURST_ENABLED;                   //Configure burst mode for channel 0. Burst is useful together with over-sampling. When triggering the SAMPLE task in burst mode,
-                                                                          //  the SAADC will sample "Oversample" number of times as fast as it can and then output a single averaged value to the RAM buffer.
+    }                                                                     //  the SAADC will sample "Oversample" number of times as fast as it can and then output a single averaged value to the RAM buffer.
                                                                           //  If burst mode is not enabled, the SAMPLE task needs to be triggered "Oversample" number of times to output a single averaged value to the RAM buffer.
-    }
+
     channel_config.pin_p = NRF_SAADC_INPUT_AIN1;                          //Select the input pin for the channel. AIN1 pin maps to physical pin P0.03.
     channel_config.pin_n = NRF_SAADC_INPUT_DISABLED;                      //Since the SAADC is single ended, the negative pin is disabled. The negative pin is shorted to ground internally.
     channel_config.resistor_p = NRF_SAADC_RESISTOR_DISABLED;              //Disable pull-up resistor on the input pin
@@ -456,4 +435,21 @@ static void test_pin_low_voltage_shutdown(void){
 	  }
   }
   tof_pwr_batt_sample_voltage_delayed(100);
+}
+
+static const char* get_batt_status_str(uint8_t status){
+    switch(status){
+        case TOF_BATT_VERY_LOW:
+            return "voltage very low, shutdown imminent";
+        case TOF_BATT_CHARGING:
+        	return "charging";
+        case TOF_BATT_CHARGING_COMPLETE:
+        	return "charging complete";
+        case TOF_BATT_LOW:
+        	return "voltage low";
+        case TOF_BATT_OK:
+        	return "voltage ok";
+        default:
+        	return "status unknown";
+    }
 }

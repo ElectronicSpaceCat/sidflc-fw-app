@@ -22,6 +22,6 @@
 
 #include "tof_device.h"
 
-void vl53lx_init(uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin);
+error_t vl53lx_create(device_t* dev, uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin);
 
 #endif /* TOF_VL53LX_STATES_H */

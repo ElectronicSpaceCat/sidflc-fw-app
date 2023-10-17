@@ -28,7 +28,7 @@
  *       - File IDs    should be in the range 0x0000 - 0xBFFF
  */
 
-void tof_fds_init(void);
+ret_code_t tof_fds_init(void);
 ret_code_t tof_fds_write(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len);
 ret_code_t tof_fds_read(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len);
 ret_code_t tof_fds_delete(uint16_t file_id, uint16_t record_key);
