@@ -17,12 +17,11 @@
  
  *******************************************************************************/
 
-#ifndef TOF_UTILS_H
-#define TOF_UTILS_H
+#ifndef SYS_UTILS_H
+#define SYS_UTILS_H
 
 #include <stdint.h>
 
-void tof_utils_reduce_version_str(const char* str_buff, char* buff);
+void sys_utils_reduce_version_str(const char* str_buff, char* buff);
 
-
-#endif /* TOF_UTILS_H */
+#endif /* SYS_UTILS_H */

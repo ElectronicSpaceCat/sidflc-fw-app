@@ -94,7 +94,7 @@ void tof_device_uninit(void) {
 void tof_device_process(void) {
 	if(!device_initialized) return;
 
-	// Make sure the selected sensor is valid
+    // Make sure the selected sensor is valid
 	if(device.id_selected >= NUM_TOF_SNSR){
 		device.id_selected = TOF_SNSR_SHORT_RANGE;
 	}

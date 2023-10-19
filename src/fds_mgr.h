@@ -17,8 +17,8 @@
  
  *******************************************************************************/
 
-#ifndef TOF_FDS_H
-#define TOF_FDS_H
+#ifndef SRC_FDS_MGR_H
+#define SRC_FDS_MGR_H
 
 #include "boards.h"
 #include <stdint.h>
@@ -33,4 +33,4 @@ ret_code_t tof_fds_write(uint16_t file_id, uint16_t record_key, uint8_t* data, s
 ret_code_t tof_fds_read(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len);
 ret_code_t tof_fds_delete(uint16_t file_id, uint16_t record_key);
 
-#endif /* TOF_FDS_H */
+#endif /* SRC_FDS_MGR_H */

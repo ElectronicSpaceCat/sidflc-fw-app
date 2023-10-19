@@ -51,6 +51,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys_utils.h>
 
 #include "boards.h"
 
@@ -97,7 +98,6 @@
 #include "app_timer.h"
 
 /// Our stuff
-#include "tof_utils.h"
 #include "tof_device.h"
 #include "ble_tof_service.h"
 #include "ble_pwr_service.h"
@@ -433,7 +433,7 @@ static void dis_init(void) {
     char buff[15];
     sprintf(buff, "%ld", app_version);
 
-    tof_utils_reduce_version_str((const char*)buff, fw_version_str);
+    sys_utils_reduce_version_str((const char*)buff, fw_version_str);
 
 	memset(&dis_init, 0, sizeof(dis_init));
 
