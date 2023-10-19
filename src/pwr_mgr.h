@@ -17,8 +17,8 @@
  
  *******************************************************************************/
 
-#ifndef SRC_TOF_PWR_MONITOR_H_
-#define SRC_TOF_PWR_MONITOR_H_
+#ifndef SRC_PWR_MGR_H_
+#define SRC_PWR_MGR_H_
 
 #include <stdint.h>
 
@@ -49,4 +49,4 @@ void tof_pwr_reset(void);
 void tof_pwr_shutdown(void);
 void tof_pwr_data_callback(pwr_mngt_data_t* m_pwr_mngt_data, tof_pwr_data_type_t type);
 
-#endif /* SRC_TOF_PWR_MONITOR_H_ */
+#endif /* SRC_PWR_MGR_H_ */

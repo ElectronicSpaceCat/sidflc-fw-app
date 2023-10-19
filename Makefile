@@ -10,21 +10,21 @@ SOFT_DEVICE_VERSION := 7.2.0
 VL53L4CX_ROOT := $(PROJ_DIR)/libs/VL53L4CX_API_v1.2.8
 
 $(OUTPUT_DIRECTORY)/$(TARGETS).out: \
-  LINKER_SCRIPT  := $(LINKER_DIR)/ble_gcc_nrf52_sd.ld
+  LINKER_SCRIPT := $(LINKER_DIR)/ble_gcc_nrf52_sd.ld
 
 # Source files common to all targets
 SRC_FILES += \
 	$(PROJ_DIR)/src/main.c \
-	$(PROJ_DIR)/src/tof_twi.c \
+	$(PROJ_DIR)/src/pwr_mgr.c \
+	$(PROJ_DIR)/src/fds_mgr.c \
+	$(PROJ_DIR)/src/sys_utils.c \
+	$(PROJ_DIR)/src/debug_cli.c \
 	$(PROJ_DIR)/src/timer_delay.c \
-	$(PROJ_DIR)/src/tof_fds.c \
-	$(PROJ_DIR)/src/tof_utils.c \
-	$(PROJ_DIR)/src/tof_device.c \
 	$(PROJ_DIR)/src/ble_pwr_service.c \
 	$(PROJ_DIR)/src/ble_tof_service.c \
-	$(PROJ_DIR)/src/debug_cli.c \
+	$(PROJ_DIR)/src/tof_twi.c \
+	$(PROJ_DIR)/src/tof_device.c \
 	$(PROJ_DIR)/src/tof_VL53LX_states.c \
-	$(PROJ_DIR)/src/tof_pwr_monitor.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api_calibration.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api_core.c \
@@ -277,68 +277,53 @@ OPT = -Os -g3
 # Uncomment the line below to enable link time optimization
 #OPT += -flto
 
+# Common defines
+CDEFS += -DBOARD_CUSTOM
+CDEFS += -DBT_VERSION_5_0
+CDEFS += -DSOFTDEVICE_PRESENT
+CDEFS += -DNRF52
+CDEFS += -DNRF52832_XXAA
+CDEFS += -DNRF52_PAN_74
+CDEFS += -DCONFIG_GPIO_AS_PINRESET
+CDEFS += -DCONFIG_NFCT_PINS_AS_GPIOS
+CDEFS += -DFLOAT_ABI_HARD
+CDEFS += -DBL_SETTINGS_ACCESS_ONLY
+CDEFS += -DS112
+CDEFS += -DNRFX_COREDEP_DELAY_US_LOOP_CYCLES=3
+CDEFS += -DNRF_DFU_SVCI_ENABLED
+CDEFS += -DNRF_DFU_TRANSPORT_BLE=1
+CDEFS += -DNRF_SD_BLE_API_VERSION=7
+CDEFS += -DAPP_TIMER_V2
+CDEFS += -DAPP_TIMER_V2_RTC1_ENABLED
+CDEFS += -DUSE_I2C_2V8
+CDEFS += -DSTDINT_H
+
+# Common hardware defines
+CHDEFS += -mthumb -mabi=aapcs
+CHDEFS += -mcpu=cortex-m4
+CHDEFS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
+
 # C flags common to all targets
 CFLAGS += $(OPT)
-CFLAGS += -DBOARD_CUSTOM
-CFLAGS += -DBT_VERSION_5_0
-CFLAGS += -DSOFTDEVICE_PRESENT
-CFLAGS += -DNRF52
-CFLAGS += -DNRF52832_XXAA
-CFLAGS += -DNRF52_PAN_74
-CFLAGS += -DCONFIG_GPIO_AS_PINRESET
-CFLAGS += -DCONFIG_NFCT_PINS_AS_GPIOS
-CFLAGS += -DFLOAT_ABI_HARD
-CFLAGS += -DBL_SETTINGS_ACCESS_ONLY
-CFLAGS += -DS112
-CFLAGS += -DNRFX_COREDEP_DELAY_US_LOOP_CYCLES=3
-CFLAGS += -DNRF_DFU_SVCI_ENABLED
-CFLAGS += -DNRF_DFU_TRANSPORT_BLE=1
-CFLAGS += -DNRF_SD_BLE_API_VERSION=7
-CFLAGS += -DAPP_TIMER_V2
-CFLAGS += -DAPP_TIMER_V2_RTC1_ENABLED
-CFLAGS += -DUSE_I2C_2V8
-CFLAGS += -DSTDINT_H
-CFLAGS += -mcpu=cortex-m4
-CFLAGS += -mthumb -mabi=aapcs
+CFLAGS += $(CHDEFS)
 CFLAGS += -Wall
-CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # keep every function in a separate section, this allows linker to discard unused ones
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
+CFLAGS += $(CDEFS)
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
 
 # Assembler flags common to all targets
 ASMFLAGS += -g3
-ASMFLAGS += -mcpu=cortex-m4
-ASMFLAGS += -mthumb -mabi=aapcs
-ASMFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
-ASMFLAGS += -DBOARD_CUSTOM
-ASMFLAGS += -DBT_VERSION_5_0
-ASMFLAGS += -DSOFTDEVICE_PRESENT
-ASMFLAGS += -DNRF52
-ASMFLAGS += -DNRF52832_XXAA
-ASMFLAGS += -DNRF52_PAN_74
-ASMFLAGS += -DCONFIG_GPIO_AS_PINRESET
-ASMFLAGS += -DCONFIG_NFCT_PINS_AS_GPIOS
-ASMFLAGS += -DFLOAT_ABI_HARD
-ASMFLAGS += -DBL_SETTINGS_ACCESS_ONLY
-ASMFLAGS += -DS112
-ASMFLAGS += -DNRFX_COREDEP_DELAY_US_LOOP_CYCLES=3
-ASMFLAGS += -DNRF_DFU_SVCI_ENABLED
-ASMFLAGS += -DNRF_DFU_TRANSPORT_BLE=1
-ASMFLAGS += -DNRF_SD_BLE_API_VERSION=7
-ASMFLAGS += -DAPP_TIMER_V2
-ASMFLAGS += -DAPP_TIMER_V2_RTC1_ENABLED
-ASMFLAGS += -DUSE_I2C_2V8
-ASMFLAGS += -DSTDINT_H
+ASMFLAGS += $(CHDEFS)
+ASMFLAGS += $(CDEFS)
 
 # Linker flags
 LDFLAGS += $(OPT)
-LDFLAGS += -mthumb -mabi=aapcs -L$(SDK_ROOT)/modules/nrfx/mdk -T$(LINKER_SCRIPT)
-LDFLAGS += -mcpu=cortex-m4
-LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
+LDFLAGS += $(CHDEFS)
+LDFLAGS += -L$(SDK_ROOT)/modules/nrfx/mdk -T$(LINKER_SCRIPT)
 # let linker dump unused sections
 LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version

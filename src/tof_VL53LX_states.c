@@ -17,34 +17,14 @@
  
  *******************************************************************************/
 
+#include <fds_mgr.h>
 #include "tof_VL53LX_states.h"
-
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_gpio.h"
-
 #include "app_timer.h"
-
 #include "timer_delay.h"
-
-#include "tof_fds.h"
-
 #include "vl53lx_api.h"
-
-// State functions
-static void state_boot(void);
-static void state_prepare(void);
-static void state_init(void);
-static void state_idle(void);
-static void state_start(void);
-static void state_stop(void);
-static void state_clear_int_and_start(void);
-static void state_standby(void);
-static void state_int_status(void);
-static void state_get_result(void);
-static void state_err(void);
-static void state_err_timeout(void);
-static void state_config(void);
 
 /**
  * Configurations:
@@ -72,11 +52,38 @@ typedef enum {
     NUM_CONFIGS,
 } config_t;
 
+#if (NUM_CONFIGS > MAX_CONFIG_BUFF_SIZE)
+#error Increase MAX_CONFIG_BUFF_SIZE to handle NUM_CONFIGS for this sensor type
+#endif
+
 // All sensor data
 typedef struct {
     VL53LX_Dev_t sensor;
     VL53LX_CalibrationData_t cal;
 }sensor_data_t;
+
+// Helper macros to access sensor data
+#define VL53LX(snsr)        ((VL53LX_DEV)&(((sensor_data_t*)snsr->context)->sensor))
+#define VL53LX_DATA(snsr)   ((sensor_data_t*)snsr->context)
+
+APP_TIMER_DEF(err_timeout_timer_id);
+static device_t* device = NULL;
+static int32_t cfg_buff[MAX_CONFIG_BUFF_SIZE];
+
+// State functions
+static void state_boot(void);
+static void state_prepare(void);
+static void state_init(void);
+static void state_idle(void);
+static void state_start(void);
+static void state_stop(void);
+static void state_clear_int_and_start(void);
+static void state_standby(void);
+static void state_int_status(void);
+static void state_get_result(void);
+static void state_err(void);
+static void state_err_timeout(void);
+static void state_config(void);
 
 // Helper functions
 static void config_cmd_handler(void);
@@ -86,46 +93,30 @@ static void init_config_types(snsr_data_t *sensor);
 static const char* get_config_str(uint8_t config);
 static void notify_config_update(uint8_t config_id);
 
-static int32_t cfg_buff[MAX_CONFIG_BUFF_SIZE];
 
-APP_TIMER_DEF(err_timeout_timer_id);
-
-// Helper macros to access sensor data
-#define VL53LX(snsr)        ((VL53LX_DEV)&(((sensor_data_t*)snsr->context)->sensor))
-#define VL53LX_DATA(snsr)   ((sensor_data_t*)snsr->context)
-
-#define RKEY_DATA_CAL  0x1011
-#define RKEY_DATA_USER 0x1015
-#define FILE_ID_MASK   0x1100
-#define FILD_ID(snsr_id) (FILE_ID_MASK | snsr_id)
-
-#define SNSR_CFGS_SIZE(device) (device->sensor->num_configs * sizeof(int32_t))
-
-#if (NUM_CONFIGS > MAX_CONFIG_BUFF_SIZE)
-#error Increase MAX_CONFIG_BUFF_SIZE to handle NUM_CONFIGS for this device
-#endif
-
-static device_t* device = NULL;
-
-error_t vl53lx_create(device_t* dev, uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin) {
+error_t vl53lx_create(device_t* dev, snsr_data_t* sensor, uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin) {
     if(NULL == device){ // Since this can be called multiple times, only set it once
         device = dev;
     }
-
+    // Check id
     if(id >= NUM_TOF_SNSR){
     	return TOF_ERROR_SENSOR_INDEX_OOR;
     }
+	// Set the type
+    switch(type){
+        // VL53L4CD and VL53L4CX both use the VL53LX driver
+		case SNSR_TYPE_VL53L4CD:
+		case SNSR_TYPE_VL53L4CX:
+			sensor->type = type;
+			break;
 
-    snsr_data_t* sensor = &(device->sensors[id]);
-
-    if(NULL == sensor){
-    	return TOF_ERROR_NONE;
+		default:
+			return TOF_ERROR_SENSOR_TYPE;
     }
 
     snprintf(sensor->name, sizeof(sensor->name), "%s_%d", get_sensor_name_str(type), id);
 
     sensor->id = id;
-    sensor->type = type;
     sensor->address = address;
     sensor->pin_xshut = xshut_pin;
     sensor->num_configs = NUM_CONFIGS;
@@ -136,7 +127,7 @@ error_t vl53lx_create(device_t* dev, uint8_t type, uint8_t id, uint8_t address, 
     // Note: Required if using multiple instances of same sensor type
     sensor->context = (void*)malloc(sizeof(sensor_data_t));
 
-    if(NULL == device->sensor->context){
+    if(NULL == sensor->context){
     	return TOF_ERROR_SENSOR_CREATE;
     }
 
@@ -243,14 +234,14 @@ static void state_prepare(void) {
     // Is a factory reset requested?
     if (TOF_RESET_SENSOR_FACTORY == device->reset_cmd) {
         // Yes - Delete all sensor data
-        tof_fds_delete(FILD_ID(device->sensor->id), RKEY_DATA_CAL);
-        tof_fds_delete(FILD_ID(device->sensor->id), RKEY_DATA_USER);
+        tof_fds_delete(FILD_ID_SNSR_DATA(device->sensor->id), RKEY_SNSR_DATA_CAL);
+        tof_fds_delete(FILD_ID_SNSR_DATA(device->sensor->id), RKEY_SNSR_DATA_USER);
     }
 
     // Read cal data from storage if it exists
     status = tof_fds_read(
-            FILD_ID(device->sensor->id),
-            RKEY_DATA_CAL,
+    		FILD_ID_SNSR_DATA(device->sensor->id),
+			RKEY_SNSR_DATA_CAL,
             (uint8_t*)&VL53LX_DATA(device->sensor)->cal,
             sizeof(VL53LX_DATA(device->sensor)->cal));
 
@@ -266,8 +257,8 @@ static void state_prepare(void) {
 
         // Read user data from storage if it exists
         status = tof_fds_read(
-                FILD_ID(device->sensor->id),
-                RKEY_DATA_USER,
+        		FILD_ID_SNSR_DATA(device->sensor->id),
+				RKEY_SNSR_DATA_USER,
                 (uint8_t*)&cfg_buff,
                 SNSR_CFGS_SIZE(device));
 
@@ -549,8 +540,8 @@ static void config_cmd_handler(void) {
             VL53LX_GetCalibrationData(VL53LX(device->sensor), &VL53LX_DATA(device->sensor)->cal);
             // Store the cal data
             tof_fds_write(
-                    FILD_ID(device->sensor->id),
-                    RKEY_DATA_CAL,
+            		FILD_ID_SNSR_DATA(device->sensor->id),
+					RKEY_SNSR_DATA_CAL,
                     (uint8_t*)&VL53LX_DATA(device->sensor)->cal,
                     sizeof(VL53LX_DATA(device->sensor)->cal));
 
@@ -560,8 +551,8 @@ static void config_cmd_handler(void) {
             }
             // Store user configurations
             tof_fds_write(
-                    FILD_ID(device->sensor->id),
-                    RKEY_DATA_USER,
+            		FILD_ID_SNSR_DATA(device->sensor->id),
+					RKEY_SNSR_DATA_USER,
                     (uint8_t*)&cfg_buff,
                     SNSR_CFGS_SIZE(device));
             return;

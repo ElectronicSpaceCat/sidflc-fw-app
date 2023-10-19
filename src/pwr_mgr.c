@@ -17,9 +17,8 @@
  
  *******************************************************************************/
 
+#include <pwr_mgr.h>
 #include "boards.h"
-
-#include "tof_pwr_monitor.h"
 
 #include "nrf_drv_gpiote.h"
 #include "nrf_drv_saadc.h"

@@ -23,13 +23,24 @@
 #include "boards.h"
 #include <stdint.h>
 
-#define MAX_CONFIG_BUFF_SIZE 20
-#define MAX_STORAGE_DATA_BUFF_SIZE 20
-#define INVALID_CONFIG_ID 0xFF
-#define INVALID_CONFIG_VALUE 0x7FFFFFFF
-#define I2C_ADDR_DEFAULT 0x29
-
-#define ERR_TIMEOUT_MS APP_TIMER_TICKS(2500)
+/** Sensor configuration defines */
+#define MAX_CONFIG_BUFF_SIZE   20
+#define MAX_EXT_DATA_BUFF_SIZE 10
+#define INVALID_CONFIG_ID      0xFF
+#define INVALID_CONFIG_VALUE   0x7FFFFFFF
+/** Default i2c address for the ToF sensors */
+#define I2C_ADDR_DEFAULT       0x29
+/** Timeout before rebooting the sensor */
+#define ERR_TIMEOUT_MS         APP_TIMER_TICKS(2500)
+/** FDS defines for external user data */
+#define RKEY_EXT_STORAGE       0x1001
+#define FILE_ID_EXT_STORAGE    0x0101
+/** FDS defines for sensor configuration data */
+#define RKEY_SNSR_DATA_CAL     0x5001
+#define RKEY_SNSR_DATA_USER    0x5002
+#define FILD_ID_SNSR_DATA(snsr_id) (0x0500 | snsr_id)
+/** FDS define for calculating the sensor configurations storage size */
+#define SNSR_CFGS_SIZE(device) (device->sensor->num_configs * sizeof(int32_t))
 
 typedef enum {
     TOF_SNSR_SHORT_RANGE = 0,
@@ -53,6 +64,7 @@ typedef enum {
 	TOF_ERROR_FDS_INIT,
 	TOF_ERROR_FDS_INTERNAL,
 	TOF_ERROR_SENSOR_INDEX_OOR,
+	TOF_ERROR_SENSOR_TYPE,
 	TOF_ERROR_SENSOR_CREATE,
 	TOF_ERROR_SENSOR_INIT,
 	TOF_ERROR_SENSOR_INTERNAL,
@@ -164,15 +176,13 @@ struct device_s{
     uint8_t is_ranging_enabled; // flag for enabling ranging
     uint8_t is_debug_enabled; // flag for enabling debug output
     uint16_t distance_mm; // ranging distance
-    uint16_t distance_mm_ref; // ranging distance reference (for debugging)
     uint16_t sample_count; // sample count, used in debug
     config_cmd_data_t config_cmd; // configuration command data
     config_cmd_data_t config_cmd_updated; // configuration command data
-    uint8_t config_pending;
+    uint8_t config_pending; // flag indicating a configuration is pending
     reset_cmd_t reset_cmd; // reset command
-    snsr_data_t sensors[NUM_TOF_SNSR]; // sensors
+    int32_t ext_data[MAX_EXT_DATA_BUFF_SIZE]; // external user stored data
     snsr_data_t* sensor; // active sensor
-    int32_t ext_data[MAX_STORAGE_DATA_BUFF_SIZE];
 };
 
 typedef void (*config_cmd_handler_t)(void);
@@ -248,18 +258,6 @@ void tof_sensor_ranging_enable_set(uint8_t value);
  * @param value
  */
 void tof_sensor_debug_set(uint8_t value);
-
-/**
- * Debug: Set the reference distance
- * @param distance_mm_ref
- */
-void tof_sensor_debug_set_ref(uint16_t distance_mm_ref);
-
-/**
- * Debug: Get the reference distance
- * @return distance_mm_ref
- */
-uint16_t tof_sensor_debug_get_ref(void);
 
 /**
  * Reset current sensor

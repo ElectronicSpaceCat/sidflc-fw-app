@@ -47,6 +47,7 @@
  * capability for updating the application code.
  */
 
+#include <pwr_mgr.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -98,7 +99,6 @@
 /// Our stuff
 #include "tof_utils.h"
 #include "tof_device.h"
-#include "tof_pwr_monitor.h"
 #include "ble_tof_service.h"
 #include "ble_pwr_service.h"
 

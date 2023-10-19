@@ -17,63 +17,74 @@
  
  *******************************************************************************/
 
+#include <fds_mgr.h>
 #include "tof_device.h"
-
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
-
 #include "tof_twi.h"
-#include "tof_fds.h"
-
 #include "tof_VL53LX_states.h"
 
-#define FILE_ID(cfg_cmd_id) (cfg_cmd_id & 0xF0)
-
-#define FILE_ID_EXT_STORAGE 0x1001
-#define RKEY_EXT_STORAGE 0x1115
-
 static device_t device;
+static snsr_data_t sensors[NUM_TOF_SNSR];
 
 static void config_cmd_ext_handler(void);
 static void tof_device_on_error_handler(error_t error);
+static bool device_initialized = false;
 
 void tof_device_init(void) {
 	error_t error =  TOF_ERROR_NONE;
-    /* Initialize the i2c interface */
+	/* Initialize the i2c interface */
 	error = tof_twi_init();
-	if(error){
+	if (error) {
 		tof_device_on_error_handler(TOF_ERROR_NO_COMMS);
 		return;
 	}
-    /* Initialize the fds interface */
+	/* Initialize the fds interface */
 	error = tof_fds_init();
-	if(error){
+	if (error) {
 		tof_device_on_error_handler(TOF_ERROR_FDS_INIT);
 		return;
-    }
-    // Read in the external stored data, ignore error if it doesn't exist
-    (void)tof_fds_read(FILE_ID_EXT_STORAGE, RKEY_EXT_STORAGE, (uint8_t*)&device.ext_data[0], sizeof(device.ext_data));
-    // Initialize the short range sensor
-    error = vl53lx_create(&device, SNSR_TYPE_VL53L4CD, TOF_SNSR_SHORT_RANGE, (I2C_ADDR_DEFAULT + 1), PIN_TOF_SHORT_XSHUT);
-	if(error){
-		tof_device_on_error_handler(error);
-		return;
-    }
-    // Initialize the long range sensor
-	error = vl53lx_create(&device, SNSR_TYPE_VL53L4CX, TOF_SNSR_LONG_RANGE, (I2C_ADDR_DEFAULT + 2), PIN_TOF_LONG_XSHUT);
-	if(error){
-		tof_device_on_error_handler(error);
-		return;
-    }
-    // Set the default sensor on startup
-    device.sensor = &device.sensors[TOF_SNSR_SHORT_RANGE];
-    // Initialize device data
-    device.id_selected = TOF_SNSR_SHORT_RANGE;
-    device.config_cmd.trgt = CONFIG_TRGT_NA;
-    device.is_ranging_enabled = false;
-    device.is_debug_enabled = false;
+	}
+	// Read in the external stored data, ignore error if it doesn't exist
+	(void) tof_fds_read(FILE_ID_EXT_STORAGE, RKEY_EXT_STORAGE, (uint8_t*) &device.ext_data[0], sizeof(device.ext_data));
 
-    NRF_LOG_INFO("ToF initialized");
+	// Initialize the short range sensor
+	error = vl53lx_create(
+			&device,
+			&sensors[TOF_SNSR_SHORT_RANGE],
+			SNSR_TYPE_VL53L4CD,
+			TOF_SNSR_SHORT_RANGE,
+			(I2C_ADDR_DEFAULT + 1),
+			PIN_TOF_SHORT_XSHUT);
+
+	if (error) {
+		tof_device_on_error_handler(error);
+		return;
+	}
+	// Initialize the long range sensor
+	error = vl53lx_create(
+			&device,
+			&sensors[TOF_SNSR_LONG_RANGE],
+			SNSR_TYPE_VL53L4CX,
+			TOF_SNSR_LONG_RANGE,
+			(I2C_ADDR_DEFAULT + 2),
+			PIN_TOF_LONG_XSHUT);
+
+	if (error) {
+		tof_device_on_error_handler(error);
+		return;
+	}
+
+	// Initialize device data
+	device.id_selected = TOF_SNSR_SHORT_RANGE;
+	device.config_cmd.trgt = CONFIG_TRGT_NA;
+	device.is_ranging_enabled = false;
+	device.is_debug_enabled = false;
+	device.sensor = &sensors[device.id_selected];
+
+	device_initialized = true;
+
+	NRF_LOG_INFO("ToF initialized");
 }
 
 void tof_device_uninit(void) {
@@ -81,17 +92,28 @@ void tof_device_uninit(void) {
 }
 
 void tof_device_process(void) {
-	// Set selected sensor id to the current if invalid
-	if(device.id_selected >= NUM_TOF_SNSR){
-		device.id_selected = device.sensor->id;
-	}
-    // Switch sensors only when the current sensor status is in Standby or Error
-    // Note: Switching should be done here and not by the sensors in the event of sensor error
-	if(device.sensor->id != device.id_selected
-        && (TOF_STATUS_STANDBY == device.sensor->status || TOF_STATUS_ERROR == device.sensor->status)){
+	if(!device_initialized) return;
 
-        device.sensor = &device.sensors[device.id_selected];
-    }
+	// Make sure the selected sensor is valid
+	if(device.id_selected >= NUM_TOF_SNSR){
+		device.id_selected = TOF_SNSR_SHORT_RANGE;
+	}
+    // Make sure selected sensor is valid
+	if(!device.sensor){
+		device.sensor = &sensors[device.id_selected];
+	}
+	// Check if the requested sensor is different than the selected
+	if(device.sensor != &sensors[device.id_selected]){
+		switch(device.sensor->status){
+			case TOF_STATUS_STANDBY:
+			case TOF_STATUS_ERROR:
+				// Switch sensors only when the current sensor status is in Standby or Error
+				device.sensor = &sensors[device.id_selected];
+				break;
+			default:
+				break;
+		}
+	}
     // Run current state
     if(device.sensor){
     	device.sensor->state();
@@ -166,8 +188,8 @@ void tof_sensor_select(sensor_id_t id) {
     }
     else if (id < NUM_TOF_SNSR) {
         device.id_selected = id;
-        NRF_LOG_INFO("%s requested", device.sensors[id].name);
-        // Let state machine notify of selected sensor when switching
+        NRF_LOG_INFO("%s requested", sensors[id].name);
+        // Let the sensor state machine notify of selected sensor when switching
     }
     else {
         NRF_LOG_INFO("invalid sensor id");
@@ -192,22 +214,15 @@ void tof_sensor_debug_set(uint8_t value) {
     device.is_debug_enabled = value;
 }
 
-void tof_sensor_debug_set_ref(uint16_t distance_mm_ref) {
-    device.distance_mm_ref = distance_mm_ref;
-}
-
-uint16_t tof_sensor_debug_get_ref(void) {
-    return device.distance_mm_ref;
-}
-
 void tof_sensor_ranging_enable_set(uint8_t value) {
-    if(device.is_ranging_enabled != value){
-        if(value){
-            device.is_ranging_enabled = 1;
+    if(device.is_ranging_enabled != value) {
+
+    	device.is_ranging_enabled = value ? 1 : 0;
+
+        if(device.is_ranging_enabled) {
             NRF_LOG_INFO("%s ranging enabled", device.sensor->name);
         }
-        else{
-            device.is_ranging_enabled = 0;
+        else {
             NRF_LOG_INFO("%s ranging disabled", device.sensor->name);
         }
     }
@@ -306,8 +321,8 @@ static void config_cmd_ext_handler(void) {
 
     device.config_cmd.status = CONFIG_STAT_OK;
 
-    // If configuration id is not in list or index not allowed then exit function
-    if (id >= MAX_STORAGE_DATA_BUFF_SIZE && cmd != CONFIG_CMD_STORE) {
+    // If configuration id is not in list and index not allowed then exit function
+    if (id >= MAX_EXT_DATA_BUFF_SIZE && cmd != CONFIG_CMD_STORE) {
         device.config_cmd.status = CONFIG_STAT_NA;
         return;
     }

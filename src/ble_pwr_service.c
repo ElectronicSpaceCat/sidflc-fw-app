@@ -17,13 +17,12 @@
  
  *******************************************************************************/
 
+#include <pwr_mgr.h>
 #include <stdint.h>
 #include <string.h>
 #include "ble_pwr_service.h"
 #include "ble_srv_common.h"
 #include "app_error.h"
-#include "tof_pwr_monitor.h"
-
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 

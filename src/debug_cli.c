@@ -17,6 +17,7 @@
  
  *******************************************************************************/
 
+#include <pwr_mgr.h>
 #include "debug_cli.h"
 
 #include "stdlib.h"
@@ -26,7 +27,6 @@
 #include "string.h"
 #include "stdbool.h"
 #include "tof_device.h"
-#include "tof_pwr_monitor.h"
 #include "ble_tof_service.h"
 #include "ble_pwr_service.h"
 #include "peer_manager.h"
@@ -105,7 +105,6 @@ void debug_cli_process(void) {
         SEGGER_RTT_WriteString(0, "rng:print              rng - toggle ranging, rng:print - toggle debug\n");
         SEGGER_RTT_WriteString(0, "ble:tof|pwr:print      debug ble:tof|pwr service\n");
         SEGGER_RTT_WriteString(0, "snsr:id                snsr - get snsr id, snsr:id select snsr\n");
-        SEGGER_RTT_WriteString(0, "ref:value              ref - get ref dist, ref:value - set ref dist\n");
         SEGGER_RTT_WriteString(0, "cfg:trgt:cmd:id:value  send config cmd, -cmds for cmd list, -trgts for trgt list\n");
         SEGGER_RTT_WriteString(0, "cfg:all                get all configs\n");
         SEGGER_RTT_WriteString(0, "rst:s|sf|d             reset: s - sensor, sf - sensor factory, d - device\n");
@@ -213,6 +212,10 @@ void debug_cli_process(void) {
         token = strtok(NULL, ":");
         if (NULL == token) {
             const device_t *device = tof_device_get();
+            if(!device->sensor){
+            	SEGGER_RTT_printf(0, "sensor not initialized\n");
+            	return;
+            }
             SEGGER_RTT_printf(0, "sensor selected: %s, addr: 0x%X\n", device->sensor->name, device->sensor->address);
         }
         else {
@@ -221,23 +224,14 @@ void debug_cli_process(void) {
         }
         return;
     }
-    else if (!strcmp(_buff, "ref")) {
-        token = strtok(NULL, ":");
-        if (NULL == token) {
-            uint16_t value = tof_sensor_debug_get_ref();
-            SEGGER_RTT_printf(0, "ref set to: %d\n", value);
-        }
-        else {
-            uint16_t dist_ref = (uint16_t) atol(token);
-            tof_sensor_debug_set_ref(dist_ref);
-            SEGGER_RTT_printf(0, "ref set to: %d\n", dist_ref);
-        }
-        return;
-    }
     else if (!strcmp(_buff, "cfg")) {
         token = strtok(NULL, ":");
         if (!strcmp(token, "all")) {
             const device_t *device = tof_device_get();
+            if(!device->sensor){
+            	SEGGER_RTT_printf(0, "sensor not initialized\n");
+            	return;
+            }
             for (uint8_t i = 0; i < device->sensor->num_configs; ++i) {
                 int32_t value = tof_sensor_cached_config_get(i);
                 SEGGER_RTT_printf(0, "config: %d : %d\n", i, value);
