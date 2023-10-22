@@ -277,7 +277,7 @@ OPT = -Os -g3
 # Uncomment the line below to enable link time optimization
 #OPT += -flto
 
-# Common defines
+# Common user defines
 CDEFS += -DBOARD_CUSTOM
 CDEFS += -DBT_VERSION_5_0
 CDEFS += -DSOFTDEVICE_PRESENT
