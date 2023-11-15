@@ -17,20 +17,20 @@
  
  *******************************************************************************/
 
-#include <pwr_mgr.h>
 #include <stdint.h>
 #include <string.h>
 #include "ble_pwr_service.h"
+
+#include "pwr_mgr.h"
 #include "ble_srv_common.h"
 #include "app_error.h"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 
-static uint8_t is_debug_enabled = false;
-
-static uint8_t is_pwr_source_enabled = false;
-static uint8_t is_pwr_batt_status_enabled = false;
-static uint8_t is_pwr_batt_level_enabled = false;
+static uint8_t debug_enabled = false;
+static uint8_t pwr_source_enabled = false;
+static uint8_t pwr_batt_status_enabled = false;
+static uint8_t pwr_batt_level_enabled = false;
 
 static void characteristic_update(ble_pwr_t *p_service, ble_gatts_char_handles_t* char_handle, uint8_t type, uint8_t *data, size_t data_len);
 static void characteristic_set(ble_pwr_t *p_service, ble_gatts_char_handles_t *char_handle, uint8_t *data, size_t data_len, uint16_t offset);
@@ -39,13 +39,13 @@ static void check_cccds_enabled(ble_gatts_evt_write_t const *p_evt_write, ble_pw
     if(p_evt_write->len != 2) return;
 
     if (p_evt_write->handle == p_pwr->pwr_source_char_handles.cccd_handle) {
-        is_pwr_source_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
+        pwr_source_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
     }
     if (p_evt_write->handle == p_pwr->pwr_batt_status_char_handles.cccd_handle) {
-        is_pwr_batt_status_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
+        pwr_batt_status_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
     }
     if (p_evt_write->handle == p_pwr->pwr_batt_level_char_handles.cccd_handle) {
-        is_pwr_batt_level_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
+        pwr_batt_level_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
     }
 }
 
@@ -65,9 +65,9 @@ void ble_pwr_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context) {
             p_pwr->conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             break;
         case BLE_GAP_EVT_DISCONNECTED:
-            is_pwr_source_enabled = false;
-            is_pwr_batt_status_enabled = false;
-            is_pwr_batt_level_enabled = false;
+            pwr_source_enabled = false;
+            pwr_batt_status_enabled = false;
+            pwr_batt_level_enabled = false;
 
             p_pwr->conn_handle = BLE_CONN_HANDLE_INVALID;
             break;
@@ -191,7 +191,7 @@ ret_code_t ble_pwr_init(ble_pwr_t *p_pwr, const ble_pwr_init_t *p_pwr_init) {
 
 // Update power source data, notify if characteristic is enabled
 void pwr_source_characteristic_update(ble_pwr_t *p_pwr, uint8_t *pwr_source_value) {
-    if(is_pwr_source_enabled){
+    if(pwr_source_enabled){
         characteristic_update(p_pwr, &p_pwr->pwr_source_char_handles, BLE_GATT_HVX_NOTIFICATION, (uint8_t*)pwr_source_value, sizeof(uint8_t));
     }
     else{
@@ -200,7 +200,7 @@ void pwr_source_characteristic_update(ble_pwr_t *p_pwr, uint8_t *pwr_source_valu
 }
 // Update batt status data, notify if characteristic is enabled
 void pwr_batt_status_characteristic_update(ble_pwr_t *p_pwr, uint8_t *batt_status_value) {
-    if(is_pwr_batt_status_enabled){
+    if(pwr_batt_status_enabled){
         characteristic_update(p_pwr, &p_pwr->pwr_batt_status_char_handles, BLE_GATT_HVX_NOTIFICATION, (uint8_t*)batt_status_value, sizeof(uint8_t));
     }
     else{
@@ -209,7 +209,7 @@ void pwr_batt_status_characteristic_update(ble_pwr_t *p_pwr, uint8_t *batt_statu
 }
 // Update batt level data, notify if characteristic is enabled
 void pwr_batt_level_characteristic_update(ble_pwr_t *p_pwr, uint32_t *batt_level) {
-    if(is_pwr_batt_level_enabled){
+    if(pwr_batt_level_enabled){
         characteristic_update(p_pwr, &p_pwr->pwr_batt_level_char_handles, BLE_GATT_HVX_NOTIFICATION, (uint8_t*)batt_level, sizeof(uint32_t));
     }
     else{
@@ -232,8 +232,8 @@ static void characteristic_update(ble_pwr_t *p_service, ble_gatts_char_handles_t
     uint32_t status = sd_ble_gatts_hvx(p_service->conn_handle, &hvx_params);
 
     // Print debug message if flag is enabled
-    if (is_debug_enabled) {
-        NRF_LOG_INFO("gatts_hvs: pwr handle: 0x%X, status: 0x%X", char_handle->value_handle, status);
+    if (debug_enabled) {
+        NRF_LOG_INFO("pwr hvx-i - handle: 0x%X, status: 0x%X", char_handle->value_handle, status);
     }
   }
 }
@@ -247,6 +247,12 @@ static void characteristic_set(ble_pwr_t *p_service, ble_gatts_char_handles_t *c
     sd_ble_gatts_value_set(p_service->conn_handle, char_handle->value_handle, &p_value);
 }
 
-void pwr_gatts_hvx_debug_set(uint8_t value) {
-    is_debug_enabled = value;
+void pwr_gatts_hvx_debug_enable(void) {
+	debug_enabled = debug_enabled ? 1 : 0;
+    if (debug_enabled) {
+    	NRF_LOG_INFO(0, "pwr hvx - debug enable");
+    }
+    else {
+    	NRF_LOG_INFO(0, "pwr hvx - debug disable");
+    }
 }

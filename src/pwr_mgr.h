@@ -17,8 +17,8 @@
  
  *******************************************************************************/
 
-#ifndef SRC_PWR_MGR_H_
-#define SRC_PWR_MGR_H_
+#ifndef SRC_TOF_PWR_MONITOR_H_
+#define SRC_TOF_PWR_MONITOR_H_
 
 #include <stdint.h>
 
@@ -43,10 +43,11 @@ void tof_pwr_init(void);
 void tof_pwr_uninit(void);
 void tof_pwr_batt_sample_voltage(void);
 void tof_pwr_batt_sample_voltage_delayed(uint32_t delay_time_ms);
-void tof_pwr_batt_print_enable(uint8_t value);
+void tof_pwr_batt_print_enable(void);
 const pwr_mngt_data_t* tof_pwr_get_mngt_data(void);
 void tof_pwr_reset(void);
 void tof_pwr_shutdown(void);
+void tof_pwr_shutdown_enable(void);
 void tof_pwr_data_callback(pwr_mngt_data_t* m_pwr_mngt_data, tof_pwr_data_type_t type);
 
-#endif /* SRC_PWR_MGR_H_ */
+#endif /* SRC_TOF_PWR_MONITOR_H_ */

@@ -24,7 +24,7 @@
 #include "ble.h"
 #include "ble_srv_common.h"
 #include "nrf_sdh_ble.h"
-#include "tof_device.h"
+#include "tof_device_mgr.h"
 
 // TODO: AG - Make sure to generate unique 128-bit UUID here
 // Defining 128-bit base UUIDs
@@ -132,7 +132,7 @@ void tof_select_characteristic_update(ble_tof_t *p_tof, uint8_t sensor, uint8_t 
  * @param[in]   p_tof                    Our Service structure.
  * @param[in]   characteristic_value     New characteristic value.
  */
-void tof_config_characteristic_update(ble_tof_t *p_tof, config_cmd_data_t *config_cmd);
+void tof_config_characteristic_update(ble_tof_t *p_tof, dev_cfg_cmd_t *config_cmd);
 
 /**@brief Function for updating and sending new characteristic values
  *
@@ -179,6 +179,6 @@ void tof_reset_characteristic_update(ble_tof_t *p_tof, uint8_t *value);
  */
 void tof_hvx_gatts_queue_process(void);
 
-void tof_gatts_hvx_debug_set(uint8_t value);
+void tof_gatts_hvx_debug_enable(void);
 
 #endif  /* _ BLE_TOF_SERVICE_H__ */

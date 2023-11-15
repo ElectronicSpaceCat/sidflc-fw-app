@@ -17,22 +17,21 @@
  
  *******************************************************************************/
 
-#include <pwr_mgr.h>
 #include "debug_cli.h"
-
+#include "ble_tof_service.h"
+#include "ble_pwr_service.h"
+#include "tof_device_mgr.h"
+#include "pwr_mgr.h"
 #include "stdlib.h"
-
 #include "boards.h"
 #include "SEGGER_RTT.h"
 #include "string.h"
 #include "stdbool.h"
-#include "tof_device.h"
-#include "ble_tof_service.h"
-#include "ble_pwr_service.h"
 #include "peer_manager.h"
 
 #define CHAR_BUFF_SIZE 20
 
+// Command buffer
 static char _buff[CHAR_BUFF_SIZE];
 
 void debug_cli_init(void) {
@@ -100,15 +99,15 @@ void debug_cli_process(void) {
 
     // Get first token and process it
     if (!strcmp(token, "help")) {
-        SEGGER_RTT_WriteString(0, "Commands:\n");
-        SEGGER_RTT_WriteString(0, "batt:print             batt - toggle batt sampling, batt:print - toggle debug\n");
-        SEGGER_RTT_WriteString(0, "rng:print              rng - toggle ranging, rng:print - toggle debug\n");
-        SEGGER_RTT_WriteString(0, "ble:tof|pwr:print      debug ble:tof|pwr service\n");
-        SEGGER_RTT_WriteString(0, "snsr:id                snsr - get snsr id, snsr:id select snsr\n");
-        SEGGER_RTT_WriteString(0, "cfg:trgt:cmd:id:value  send config cmd, -cmds for cmd list, -trgts for trgt list\n");
-        SEGGER_RTT_WriteString(0, "cfg:all                get all configs\n");
-        SEGGER_RTT_WriteString(0, "rst:s|sf|d             reset: s - sensor, sf - sensor factory, d - device\n");
-        SEGGER_RTT_WriteString(0, "shutdown               shutdown device\n");
+        SEGGER_RTT_WriteString(0, "\nCommands:\n");
+        SEGGER_RTT_WriteString(0, "batt:print            batt - toggle batt sampling, batt:print - toggle debug\n");
+        SEGGER_RTT_WriteString(0, "rng:print             rng - toggle ranging, rng:print - toggle debug\n");
+        SEGGER_RTT_WriteString(0, "ble:tof|pwr:print     debug ble:tof|pwr service\n");
+        SEGGER_RTT_WriteString(0, "snsr:id               snsr - get snsr id, snsr:id select snsr\n");
+        SEGGER_RTT_WriteString(0, "cfg:trgt:cmd:id:value send config cmd, -cmds for cmd list, -trgts for trgt list\n");
+        SEGGER_RTT_WriteString(0, "cfg:trgt:all          get all trgt configs\n");
+        SEGGER_RTT_WriteString(0, "rst:s|sf|d            reset: s - sensor, sf - sensor factory, d -device\n");
+        SEGGER_RTT_WriteString(0, "shutdown:en           shutdown - power off device, shutdown:en - toggle shutdown enabled\n\n");
         return;
     }
     else if (!strcmp(token, "-cmds")) {
@@ -122,7 +121,7 @@ void debug_cli_process(void) {
     else if (!strcmp(token, "-trgts")) {
         SEGGER_RTT_WriteString(0, "config targets:\n");
         SEGGER_RTT_WriteString(0, "0  active sensor\n");
-        SEGGER_RTT_WriteString(0, "1  storage\n");
+        SEGGER_RTT_WriteString(0, "1  user\n");
         return;
     }
     else if (!strcmp(token, "batt")) {
@@ -131,15 +130,7 @@ void debug_cli_process(void) {
             tof_pwr_batt_sample_voltage();
         }
         else if (!strcmp(token, "print")) {
-            static uint8_t _toggle = 0;
-            _toggle = _toggle ? 0 : 1;
-            tof_pwr_batt_print_enable(_toggle);
-            if (_toggle) {
-                SEGGER_RTT_WriteString(0, "batt debug enable\n");
-            }
-            else {
-                SEGGER_RTT_WriteString(0, "batt debug disable\n");
-            }
+            tof_pwr_batt_print_enable();
         }
         else{
             // Do nothing..
@@ -149,24 +140,12 @@ void debug_cli_process(void) {
     else if (!strcmp(_buff, "rng")) {
         token = strtok(NULL, ":");
         if (NULL == token) {
-            const device_t *device = tof_device_get();
-            tof_sensor_ranging_enable_set(device->is_ranging_enabled? 0 : 1);
-            if (device->is_ranging_enabled) {
-                SEGGER_RTT_WriteString(0, "range enabled\n");
-            }
-            else {
-                SEGGER_RTT_WriteString(0, "range disabled\n");
-            }
+            const tof_sensor_handle_t *shandle = tof_dev_mgr_shandle_get();
+            tof_dev_mgr_set_ranging_enable(shandle->ranging_enabled? 0 : 1);
         }
         else if (!strcmp(token, "print")) {
-            const device_t *device = tof_device_get();
-            tof_sensor_debug_set(device->is_debug_enabled? 0 : 1);
-            if (device->is_debug_enabled) {
-                SEGGER_RTT_WriteString(0, "range debug enable\n");
-            }
-            else {
-                SEGGER_RTT_WriteString(0, "range debug disable\n");
-            }
+            const tof_sensor_handle_t *shandle = tof_dev_mgr_shandle_get();
+            tof_dev_mgr_set_debug_enable(shandle->debug_enabled? 0 : 1);
         }
         else{
             // Do nothing..
@@ -178,29 +157,13 @@ void debug_cli_process(void) {
         if (!strcmp(token, "tof")) {
             token = strtok(NULL, ":");
             if (!strcmp(token, "print")) {
-                static uint8_t _toggle = 0;
-                _toggle = _toggle ? 0 : 1;
-                tof_gatts_hvx_debug_set(_toggle);
-                if (_toggle) {
-                    SEGGER_RTT_WriteString(0, "ble:tof debug enable\n");
-                }
-                else {
-                    SEGGER_RTT_WriteString(0, "ble:tof debug disable\n");
-                }
+                tof_gatts_hvx_debug_enable();
             }
         }
         else if (!strcmp(token, "pwr")) {
             token = strtok(NULL, ":");
             if (!strcmp(token, "print")) {
-                static uint8_t _toggle = 0;
-                _toggle = _toggle ? 0 : 1;
-                pwr_gatts_hvx_debug_set(_toggle);
-                if (_toggle) {
-                    SEGGER_RTT_WriteString(0, "ble:pwr debug enable\n");
-                }
-                else {
-                    SEGGER_RTT_WriteString(0, "ble:pwr debug disable\n");
-                }
+                pwr_gatts_hvx_debug_enable();
             }
         }
         else{
@@ -211,71 +174,84 @@ void debug_cli_process(void) {
     else if (!strcmp(_buff, "snsr")) {
         token = strtok(NULL, ":");
         if (NULL == token) {
-            const device_t *device = tof_device_get();
-            if(!device->sensor){
-            	SEGGER_RTT_printf(0, "sensor not initialized\n");
-            	return;
-            }
-            SEGGER_RTT_printf(0, "sensor selected: %s, addr: 0x%X\n", device->sensor->name, device->sensor->address);
+            const tof_sensor_handle_t *shandle = tof_dev_mgr_shandle_get();
+            SEGGER_RTT_printf(0, "sensor selected: %s, addr: 0x%X\n", shandle->sensor->name, shandle->sensor->address);
         }
         else {
             uint8_t id = (uint8_t) atol(token);
-            tof_sensor_select(id);
+            tof_dev_mgr_sensor_select(id);
         }
         return;
     }
     else if (!strcmp(_buff, "cfg")) {
         token = strtok(NULL, ":");
+		if (NULL == token) {
+			SEGGER_RTT_WriteString(0, "cfg trgt missing\n");
+			return;
+		}
+
+		uint8_t trgt = (uint8_t) atol(token);
+
+        token = strtok(NULL, ":");
         if (!strcmp(token, "all")) {
-            const device_t *device = tof_device_get();
-            if(!device->sensor){
-            	SEGGER_RTT_printf(0, "sensor not initialized\n");
-            	return;
-            }
-            for (uint8_t i = 0; i < device->sensor->num_configs; ++i) {
-                int32_t value = tof_sensor_cached_config_get(i);
-                SEGGER_RTT_printf(0, "config: %d : %d\n", i, value);
+            switch (trgt) {
+                case DEV_CFG_TRGT_SNSR: {
+                    const tof_sensor_handle_t *shandle = tof_dev_mgr_shandle_get();
+                    for (uint8_t i = 0; i < shandle->sensor->num_configs; ++i) {
+                        int32_t value = tof_dev_mgr_get_cached_config(trgt, i);
+                        SEGGER_RTT_printf(0, "config: %d : %d\n", i, value);
+                    }
+                    return;
+                }
+                case DEV_CFG_TRGT_USER:
+                    for (uint8_t i = 0; i < MAX_USER_CONFIG_BUFF_SIZE; ++i) {
+                        int32_t value = tof_dev_mgr_get_cached_config(trgt, i);
+                        SEGGER_RTT_printf(0, "config: %d : %d\n", i, value);
+                    }
+                	return;
+                default:
+                	SEGGER_RTT_WriteString(0, "cfg trgt na\n");
+                    return;
             }
         }
-        else {
-            uint8_t trgt = (uint8_t) atol(token);
-            token = strtok(NULL, ":");
-            if (NULL == token) {
-                return;
-            }
 
-            uint8_t cmd = (uint8_t) atol(token);
+		if (NULL == token) {
+			SEGGER_RTT_WriteString(0, "cfg cmd missing\n");
+			return;
+		}
+		uint8_t cmd = (uint8_t) atol(token);
 
-            token = strtok(NULL, ":");
-            if (NULL == token) {
-                return;
-            }
+		token = strtok(NULL, ":");
+		if (NULL == token) {
+			SEGGER_RTT_WriteString(0, "cfg id missing\n");
+			return;
+		}
+		uint8_t id = (uint8_t) atol(token);
 
-            uint8_t id = (uint8_t) atol(token);
+		if(cmd != CONFIG_CMD_SET){
+			tof_dev_mgr_set_cfg_cmd(trgt, cmd, id, 0);
+			return;
+		}
 
-            if(cmd != CONFIG_CMD_SET){
-                tof_config_cmd_set(trgt, cmd, id, 0);
-                return;
-            }
+		token = strtok(NULL, ":");
+		if (NULL == token) {
+			SEGGER_RTT_WriteString(0, "cfg value missing\n");
+			return;
+		}
 
-            token = strtok(NULL, ":");
-            if (NULL == token) {
-                return;
-            }
+		int32_t value = (int32_t) atol(token);
+		tof_dev_mgr_set_cfg_cmd(trgt, cmd, id, value);
 
-            int32_t value = (int32_t) atol(token);
-            tof_config_cmd_set(trgt, cmd, id, value);
-        }
         return;
     }
     else if (!strcmp(_buff, "rst")) {
         token = strtok(NULL, ":");
         if (!strcmp(token, "s")) {
-            tof_sensor_reset(TOF_RESET_SENSOR);
+        	tof_dev_mgr_sensor_reset(TOF_SENSOR_RESET_SENSOR);
             return;
         }
         else if (!strcmp(token, "sf")) {
-            tof_sensor_reset(TOF_RESET_SENSOR_FACTORY);
+        	tof_dev_mgr_sensor_reset(TOF_SENSOR_RESET_SENSOR_FACTORY);
             return;
         }
         else if (!strcmp(token, "d")) {
@@ -287,7 +263,14 @@ void debug_cli_process(void) {
         }
     }
     else if (!strcmp(_buff, "shutdown")) {
-        tof_pwr_shutdown();
+        token = strtok(NULL, ":");
+        if (NULL == token) {
+        	tof_pwr_shutdown();
+        	return;
+        }
+        else if (!strcmp(token, "en")) {
+            tof_pwr_shutdown_enable();
+        }
         return;
     }
     else{

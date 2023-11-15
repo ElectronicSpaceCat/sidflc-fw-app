@@ -30,14 +30,14 @@
 
 #include "timer_delay.h"
 
-static uint8_t is_debug_enabled = false;
+static uint8_t debug_enabled = false;
 
-static uint8_t is_tof_range_enabled = false;
-static uint8_t is_tof_select_enabled = false;
-static uint8_t is_tof_status_enabled = false;
-static uint8_t is_tof_rng_en_enabled = false;
-static uint8_t is_tof_config_enabled = false;
-static uint8_t is_tof_reset_enabled = false;
+static uint8_t tof_range_enabled = false;
+static uint8_t tof_select_enabled = false;
+static uint8_t tof_status_enabled = false;
+static uint8_t tof_rng_en_enabled = false;
+static uint8_t tof_config_enabled = false;
+static uint8_t tof_reset_enabled = false;
 
 static volatile uint8_t m_hvc_active = false;
 
@@ -62,22 +62,22 @@ static void check_cccds_enabled(ble_gatts_evt_write_t const *p_evt_write, ble_to
     if(p_evt_write->len != 2) return;
 
     if (p_evt_write->handle == p_tof->tof_range_char_handles.cccd_handle) {
-        is_tof_range_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
+        tof_range_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
     }
     if (p_evt_write->handle == p_tof->tof_select_char_handles.cccd_handle) {
-        is_tof_select_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        tof_select_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
     }
     if (p_evt_write->handle == p_tof->tof_config_char_handles.cccd_handle) {
-        is_tof_config_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        tof_config_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
     }
     if (p_evt_write->handle == p_tof->tof_status_char_handles.cccd_handle) {
-        is_tof_status_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        tof_status_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
     }
     if (p_evt_write->handle == p_tof->tof_ranging_enable_char_handles.cccd_handle) {
-        is_tof_rng_en_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        tof_rng_en_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
     }
     if (p_evt_write->handle == p_tof->tof_reset_char_handles.cccd_handle) {
-        is_tof_reset_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        tof_reset_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
     }
 }
 
@@ -128,12 +128,12 @@ void ble_tof_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context) {
             p_tof->conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             break;
         case BLE_GAP_EVT_DISCONNECTED:
-            is_tof_range_enabled = false;
-            is_tof_select_enabled = false;
-            is_tof_config_enabled = false;
-            is_tof_status_enabled = false;
-            is_tof_rng_en_enabled = false;
-            is_tof_reset_enabled = false;
+            tof_range_enabled = false;
+            tof_select_enabled = false;
+            tof_config_enabled = false;
+            tof_status_enabled = false;
+            tof_rng_en_enabled = false;
+            tof_reset_enabled = false;
 
             p_tof->conn_handle = BLE_CONN_HANDLE_INVALID;
             break;
@@ -151,7 +151,7 @@ void ble_tof_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context) {
             // Only pop data off the queue if indication was received
             hvx_queue_t hvx;
             if(NRF_SUCCESS == nrf_queue_generic_pop(&m_hvx, &hvx, false)){
-                if (is_debug_enabled) {
+                if (debug_enabled) {
                     NRF_LOG_INFO(
                             "tof hvx-i handle: 0x%X de-queued: %d/%d, status: %d",
                             p_ble_evt->evt.gatts_evt.params.hvc.handle,
@@ -289,7 +289,7 @@ ret_code_t ble_tof_init(ble_tof_t *p_tof, const ble_tof_init_t *p_tof_init) {
 
 // Update tof range data, notify if characteristic is enabled
 void tof_range_characteristic_update(ble_tof_t *p_tof, uint16_t *tof_range_value) {
-    if(is_tof_range_enabled){
+    if(tof_range_enabled){
         characteristic_update(p_tof, &p_tof->tof_range_char_handles, BLE_GATT_HVX_NOTIFICATION, (uint8_t*) tof_range_value, sizeof(uint16_t));
     }
     else{
@@ -303,7 +303,7 @@ void tof_select_characteristic_update(ble_tof_t *p_tof, uint8_t sensor, uint8_t 
     data = (0x00FF & sensor);
     data |= (0xFF00 & (sensor_type << 8));
 
-    if(is_tof_select_enabled){
+    if(tof_select_enabled){
         characteristic_update(p_tof, &p_tof->tof_select_char_handles, BLE_GATT_HVX_INDICATION, (uint8_t*) &data, sizeof(data));
     }
     else{
@@ -312,15 +312,15 @@ void tof_select_characteristic_update(ble_tof_t *p_tof, uint8_t sensor, uint8_t 
 }
 
 // Update tof config data, notify if characteristic is enabled
-void tof_config_characteristic_update(ble_tof_t *p_tof, config_cmd_data_t *config_cmd) {
+void tof_config_characteristic_update(ble_tof_t *p_tof, dev_cfg_cmd_t *config_cmd) {
     uint8_t data[8];
     data[0] = config_cmd->trgt;
-    data[1] = config_cmd->cmd;
-    data[2] = config_cmd->id;
-    memcpy(&data[3], &config_cmd->value, sizeof(config_cmd->value));
-    data[7] = config_cmd->status;
+    data[1] = config_cmd->cfg.cmd;
+    data[2] = config_cmd->cfg.id;
+    memcpy(&data[3], &config_cmd->cfg.value, sizeof(config_cmd->cfg.value));
+    data[7] = config_cmd->cfg.status;
 
-    if(is_tof_config_enabled){
+    if(tof_config_enabled){
         characteristic_update(p_tof, &p_tof->tof_config_char_handles, BLE_GATT_HVX_INDICATION, (uint8_t*) &data, sizeof(data));
     }
     else{
@@ -330,7 +330,7 @@ void tof_config_characteristic_update(ble_tof_t *p_tof, config_cmd_data_t *confi
 
 // Update tof status data, notify if characteristic is enabled
 void tof_status_characteristic_update(ble_tof_t *p_tof, uint8_t *tof_status_value) {
-    if(is_tof_status_enabled){
+    if(tof_status_enabled){
         characteristic_update(p_tof, &p_tof->tof_status_char_handles, BLE_GATT_HVX_INDICATION, (uint8_t*) tof_status_value, sizeof(uint8_t));
     }
     else{
@@ -340,7 +340,7 @@ void tof_status_characteristic_update(ble_tof_t *p_tof, uint8_t *tof_status_valu
 
 // Update tof range enable data, notify if characteristic is enabled
 void tof_ranging_enable_characteristic_update(ble_tof_t *p_tof, uint8_t *tof_sampling_enabled) {
-    if(is_tof_rng_en_enabled){
+    if(tof_rng_en_enabled){
         characteristic_update(p_tof, &p_tof->tof_ranging_enable_char_handles, BLE_GATT_HVX_INDICATION, (uint8_t*) tof_sampling_enabled, sizeof(uint8_t));
     }
     else{
@@ -350,7 +350,7 @@ void tof_ranging_enable_characteristic_update(ble_tof_t *p_tof, uint8_t *tof_sam
 
 // Update tof reset data, notify if characteristic is enabled
 void tof_reset_characteristic_update(ble_tof_t *p_tof, uint8_t *reset) {
-    if(is_tof_reset_enabled){
+    if(tof_reset_enabled){
         characteristic_update(p_tof, &p_tof->tof_reset_char_handles, BLE_GATT_HVX_INDICATION, (uint8_t*) reset, sizeof(uint8_t));
     }
     else{
@@ -373,7 +373,7 @@ static void characteristic_update(ble_tof_t *p_service, ble_gatts_char_handles_t
             // Notifications are allowed to send regardless of hvx status
             case BLE_GATT_HVX_NOTIFICATION:{
                 uint32_t status = sd_ble_gatts_hvx(p_service->conn_handle, &hvx_params);
-                if (is_debug_enabled) {
+                if (debug_enabled) {
                     NRF_LOG_INFO("tof hvx-n handle: 0x%X, status: %d", char_handle->value_handle, status);
                 }
                 break;
@@ -433,7 +433,7 @@ static void hvx_gatts_queue_push(uint16_t* conn_handle, ble_gatts_hvx_params_t *
 
     // Push hvx data on queue
     if(NRF_SUCCESS == nrf_queue_push(&m_hvx, &hvx)){
-        if (is_debug_enabled) {
+        if (debug_enabled) {
             NRF_LOG_INFO("tof hvx-i handle: 0x%X queued at: %d/%d", hvx.hvx_params.handle, hvx.idx, m_hvx.size);
         }
     }
@@ -461,12 +461,12 @@ void tof_hvx_gatts_queue_process(void){
     // Send the hvx indication data
     uint32_t status = sd_ble_gatts_hvx(*hvx.conn_handle, &hvx.hvx_params);
 
-    if (is_debug_enabled) {
+    if (debug_enabled) {
         NRF_LOG_INFO("tof hvx-i handle: 0x%X tx-queued: %d/%d, status: %d", hvx.hvx_params.handle, hvx.idx, m_hvx.size, status);
     }
     // Is status == NRF_SUCCESS
     if(NRF_SUCCESS == status){
-        if (is_debug_enabled) {
+        if (debug_enabled) {
             NRF_LOG_FLUSH();
         }
         // Yes - Set flag and wait for BLE_GATTS_EVT_TIMEOUT or BLE_GATTS_EVT_HVC response
@@ -475,6 +475,12 @@ void tof_hvx_gatts_queue_process(void){
     }
 }
 
-void tof_gatts_hvx_debug_set(uint8_t value) {
-    is_debug_enabled = value;
+void tof_gatts_hvx_debug_enable(void) {
+    debug_enabled = debug_enabled ? 0 : 1;
+    if (debug_enabled) {
+    	NRF_LOG_INFO(0, "tof hvx - debug enable");
+    }
+    else {
+    	NRF_LOG_INFO(0, "tof hvx - debug disable");
+    }
 }

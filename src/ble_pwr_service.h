@@ -121,6 +121,6 @@ void pwr_batt_status_characteristic_update(ble_pwr_t *p_pwr, uint8_t *batt_statu
 void pwr_batt_level_characteristic_update(ble_pwr_t *p_pwr, uint32_t *batt_volts);
 
 
-void pwr_gatts_hvx_debug_set(uint8_t value);
+void pwr_gatts_hvx_debug_enable(void);
 
 #endif  /* _ BLE_PWR_SERVICE_H__ */

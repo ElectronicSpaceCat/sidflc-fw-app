@@ -17,7 +17,7 @@
  
  *******************************************************************************/
 
-#include <pwr_mgr.h>
+#include "pwr_mgr.h"
 #include "boards.h"
 
 #include "nrf_drv_gpiote.h"
@@ -94,6 +94,7 @@ APP_TIMER_DEF(m_delay_timer_id);
 static nrf_saadc_value_t adc_buf[2];
 static pwr_mngt_data_t m_pwr_mngt_data;
 static uint8_t _print_batt_sample_flag = 0;
+static uint8_t _enable_shutdown = 1;
 
 static void button_signal_handler(uint8_t pin_no, uint8_t button_action);
 static void input_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action);
@@ -233,8 +234,14 @@ const pwr_mngt_data_t* tof_pwr_get_mngt_data(void){
   return &m_pwr_mngt_data;
 }
 
-void tof_pwr_batt_print_enable(uint8_t value){
-  _print_batt_sample_flag = value;
+void tof_pwr_batt_print_enable(void){
+  _print_batt_sample_flag = _print_batt_sample_flag ? 0 : 1;
+  if (_print_batt_sample_flag) {
+	  NRF_LOG_INFO("SYS batt debug enable");
+  }
+  else {
+	  NRF_LOG_INFO("SYS batt debug disable");
+  }
 }
 
 void tof_pwr_reset(void){
@@ -246,11 +253,24 @@ void tof_pwr_reset(void){
 #endif
 }
 
-void tof_pwr_shutdown(void){
-  NRF_LOG_INFO("SYS shutdown...");
-  NRF_LOG_FLUSH();
-  // Remove system power
-  nrf_gpio_pin_clear(PIN_PS_HOLD);
+void tof_pwr_shutdown(void) {;
+	if (!_enable_shutdown)
+		return;
+
+	NRF_LOG_INFO("SYS shutdown...");
+	NRF_LOG_FLUSH();
+	// Remove system power
+	nrf_gpio_pin_clear(PIN_PS_HOLD);
+}
+
+void tof_pwr_shutdown_enable(void) {
+	_enable_shutdown =  _enable_shutdown? 0 : 1;
+    if (_enable_shutdown) {
+    	NRF_LOG_INFO("SYS shutdown enabled");
+    }
+    else {
+    	NRF_LOG_INFO("SYS shutdown disabled");
+    }
 }
 
 static void adc_configure(void)

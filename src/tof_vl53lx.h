@@ -17,11 +17,11 @@
  
  *******************************************************************************/
 
-#ifndef TOF_VL53LX_STATES_H
-#define TOF_VL53LX_STATES_H
+#ifndef TOF_VL53LX_H
+#define TOF_VL53LX_H
 
-#include "tof_device.h"
+#include "tof_sensor.h"
 
-error_t vl53lx_create(device_t* dev, snsr_data_t* sensor, uint8_t type, uint8_t id, uint8_t address, uint8_t xshut_pin);
+tof_sensor_err_t vl53lx_init(const tof_sensor_handle_t* handle, tof_sensor_t* sensor);
 
-#endif /* TOF_VL53LX_STATES_H */
+#endif /* TOF_VL53LX_H */

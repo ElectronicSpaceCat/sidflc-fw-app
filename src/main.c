@@ -47,11 +47,9 @@
  * capability for updating the application code.
  */
 
-#include <pwr_mgr.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys_utils.h>
 
 #include "boards.h"
 
@@ -98,12 +96,14 @@
 #include "app_timer.h"
 
 /// Our stuff
-#include "tof_device.h"
 #include "ble_tof_service.h"
 #include "ble_pwr_service.h"
-
+#include "utils.h"
+#include "tof_device_mgr.h"
+#include "pwr_mgr.h"
 #include "debug_cli.h"
 
+/// GPREGRET2 stored flag to indicated if bonds should be deleted on boot up
 #define APP_NOTIFY_DELETE_BONDS_BIT_MASK (0x02)
 #define APP_NOTIFY_DELETE_BONDS_MASK (BOOTLOADER_DFU_GPREGRET2_MASK | APP_NOTIFY_DELETE_BONDS_BIT_MASK)
 #define APP_NOTIFY_DELETE_BONDS (BOOTLOADER_DFU_GPREGRET2 | APP_NOTIFY_DELETE_BONDS_BIT_MASK)
@@ -181,8 +181,6 @@ static void advertising_start(bool erase_bonds); /**< Forward declaration of adv
 static void whitelist_set(pm_peer_id_list_skip_t skip);
 static void identities_set(pm_peer_id_list_skip_t skip);
 
-static bool tof_device_process_flag = false;
-
 // Char buffer for the firmware version string
 static char fw_version_str[15];
 
@@ -227,7 +225,7 @@ static void ble_dfu_evt_handler(ble_dfu_buttonless_evt_type_t event);
 // This is a timer event handler for the tof sensors
 static void tof_timer_timeout_handler(void *p_context) {
     UNUSED_PARAMETER(p_context);
-    tof_device_process_flag = true;
+    tof_dev_mgr_set_run_signal();
 }
 
 // This is a timer event handler for the battery voltage sampling
@@ -238,71 +236,86 @@ static void tof_pwr_batt_meas_timeout_handler(void *p_context) {
 
 // ble tof characteristic for selecting which sensor to use
 static void tof_select_write_handler(uint16_t conn_handle, uint8_t tof_select) {
-    tof_sensor_select(tof_select);
+	tof_dev_mgr_sensor_select(tof_select);
 }
 
 // ble tof characteristic for setting the sensor configurations
 static void tof_config_write_handler(uint16_t conn_handle, uint8_t trgt, uint8_t cmd, uint8_t id, int32_t value) {
-    tof_config_cmd_set(trgt, cmd, id, value);
+    tof_dev_mgr_set_cfg_cmd(trgt, cmd, id, value);
 }
 
 // ble tof characteristic to start/stop the sensor ranging
 static void tof_ranging_enable_write_handler(uint16_t conn_handle, uint8_t value) {
-    tof_sensor_ranging_enable_set(value);
+	tof_dev_mgr_set_ranging_enable(value);
 }
 
 // ble tof characteristic to reset the sensor
 static void tof_reset_write_handler(uint16_t conn_handle, uint8_t reset_command) {
     switch(reset_command){
-        case TOF_RESET_DEVICE:
+        case DEV_RESET_SYSTEM:
             tof_pwr_reset();
             break;
-        case TOF_RESET_SENSOR:
-        case TOF_RESET_SENSOR_FACTORY:
-            tof_sensor_reset(reset_command);
+        case DEV_RESET_ACTIVE_SENSOR:
+        	tof_dev_mgr_sensor_reset(TOF_SENSOR_RESET_SENSOR);
+        	break;
+        case DEV_RESET_ACTIVE_SENSOR_FACTORY:
+        	tof_dev_mgr_sensor_reset(TOF_SENSOR_RESET_SENSOR_FACTORY);
             break;
         default:
             break;
     }
 }
 
-// This callback updates the ble tof data characteristic
-void tof_data_callback(device_t *device, snsr_data_type_t type) {
+// This callback updates the ble tof data characteristics
+void tof_sensor_data_callback(snsr_data_type_t type, void* context) {
     switch (type) {
-        case TOF_DATA_SELECTED:
+        case TOF_DATA_SELECTED: {
+        	tof_sensor_t* sensor = (tof_sensor_t*)context;
             // Update sensor selected and type
-            tof_select_characteristic_update(
-                    &m_tof,
-                    device->sensor->id,
-                    device->sensor->type);
+            tof_select_characteristic_update(&m_tof, sensor->id, sensor->type);
             break;
-        case TOF_DATA_DISTANCE:
+        }
+        case TOF_DATA_DISTANCE: {
             // Update distance characteristic
-            tof_range_characteristic_update(&m_tof, &device->distance_mm);
+            tof_range_characteristic_update(&m_tof, (uint16_t*)context);
             break;
+        }
+        case TOF_DATA_STATUS: {
             // Update status characteristic
-        case TOF_DATA_STATUS:
-            tof_status_characteristic_update(&m_tof, &device->sensor->status);
+            tof_status_characteristic_update(&m_tof, (uint8_t*)context);
             break;
-        case TOF_DATA_CONFIG_COMMAND:
-            // Update configuration characteristic
-            tof_config_characteristic_update(&m_tof, &device->config_cmd);
-            break;
-        case TOF_DATA_CONFIG_UPDATED:
-            // Update configuration characteristic
-            tof_config_characteristic_update(&m_tof, &device->config_cmd_updated);
-            break;
-        case TOF_DATA_SAMPLING_ENABLED:
+        }
+        case TOF_DATA_SAMPLING_ENABLED: {
             // Update tof enable_sampling characteristic
-            tof_ranging_enable_characteristic_update(&m_tof, &device->is_ranging_enabled);
+            tof_ranging_enable_characteristic_update(&m_tof, (uint8_t*)context);
             break;
-        case TOF_DATA_RESET:
+        }
+        case TOF_DATA_CONFIG: {
+        	cfg_cmd_data_t* cfg = (cfg_cmd_data_t*)context;
+            // Update tof command characteristic
+        	dev_cfg_cmd_t devcfg = {
+				.trgt = DEV_CFG_TRGT_SNSR,
+				.cfg.cmd = cfg->cmd,
+				.cfg.id = cfg->id,
+				.cfg.value = cfg->value,
+				.cfg.status = cfg->status
+        	};
+        	tof_config_characteristic_update(&m_tof, &devcfg);
+            break;
+        }
+        case TOF_DATA_RESET: {
             // Update tof reset command characteristic
-            tof_reset_characteristic_update(&m_tof, &device->reset_cmd);
+            tof_reset_characteristic_update(&m_tof, (uint8_t*)context);
             break;
+        }
         default:
             break;
     }
+}
+
+// This callback updates the ble tof configuration characteristic
+void tof_dev_cfg_cmd_callback(dev_cfg_cmd_t* config_cmd) {
+	tof_config_characteristic_update(&m_tof, config_cmd);
 }
 
 /**@brief Function for handling the ADC interrupt.
@@ -433,7 +446,7 @@ static void dis_init(void) {
     char buff[15];
     sprintf(buff, "%ld", app_version);
 
-    sys_utils_reduce_version_str((const char*)buff, fw_version_str);
+    tof_utils_reduce_version_str((const char*)buff, fw_version_str);
 
 	memset(&dis_init, 0, sizeof(dis_init));
 
@@ -579,7 +592,7 @@ static bool app_shutdown_handler(nrf_pwr_mgmt_evt_t event) {
 		uint32_t err_code;
 
 		// Disable rng sensors
-		tof_device_uninit();
+		tof_dev_mgr_uninit();
 		// Disable pwr monitor
 		tof_pwr_uninit();
 
@@ -615,7 +628,6 @@ static void buttonless_dfu_sdh_state_observer(nrf_sdh_state_evt_t state, void *p
 	if (state == NRF_SDH_EVT_STATE_DISABLED) {
 		// Softdevice was disabled before going into reset. Inform bootloader to skip CRC on next boot.
 		nrf_power_gpregret2_set(BOOTLOADER_DFU_SKIP_CRC);
-
 		//Go to system off.
 		nrf_pwr_mgmt_shutdown(NRF_PWR_MGMT_SHUTDOWN_GOTO_SYSOFF);
 	}
@@ -629,8 +641,7 @@ NRF_SDH_STATE_OBSERVER(m_buttonless_dfu_state_obs, 0) = {
 static void disconnect(uint16_t conn_handle, void *p_context) {
 	UNUSED_PARAMETER(p_context);
 
-	ret_code_t err_code = sd_ble_gap_disconnect(conn_handle,
-			BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+	ret_code_t err_code = sd_ble_gap_disconnect(conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
 	if (err_code != NRF_SUCCESS) {
 		NRF_LOG_WARNING("BLE Failed to disconnect connection. Connection handle: %d Error: %d",
 				conn_handle, err_code);
@@ -729,7 +740,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name) {
 static void pm_evt_handler(pm_evt_t const *p_evt) {
 	// Typical peer handlers
 	pm_handler_on_pm_evt(p_evt);
-	// spm_handler_disconnect_on_sec_failure(p_evt); // TODO AG - This can apparently cause bonding failures
+	// spm_handler_disconnect_on_sec_failure(p_evt); // NOTE AG - This can apparently cause bonding failures
 
 	// Run garbage collection
 	pm_handler_flash_clean(p_evt);
@@ -750,7 +761,7 @@ static void pm_evt_handler(pm_evt_t const *p_evt) {
 		break;
 
 	case PM_EVT_CONN_SEC_CONFIG_REQ: {
-        // TODO AG - This block should allow a "re-pairing" if the central (i.e. mobile phone) requests a pairing
+        // TODO AG - This block should allow a "re-pairing" if the central device requests a pairing
         // but a bond already exists. This can handle the case in which the user has denied the bluetooth
         // device even after a successful previous paring. For security reasons this is not recommended
         // and it is probably better to delete previous bonds instead.
@@ -965,6 +976,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
 
 	switch (ble_adv_evt) {
 	case BLE_ADV_EVT_IDLE:
+		NRF_LOG_INFO("BLE Idle");
 		tof_pwr_shutdown();
 		break;
 
@@ -1304,16 +1316,7 @@ static void power_management_init(void) {
  */
 static void idle_state_handle(void) {
 	// ToF loop
-	// Note: Flag used to not have conflicting app timer usage.
-	//       The device handler uses the timer for i2c and error states
-	//       and the timer is used to run this function at a specified rate.
-	//       The timer cannot be called while already inside a timer event.
-	if (tof_device_process_flag) {
-	    tof_device_process_flag = false;
-		tof_device_process();
-	}
-    // Process configuration command
-	tof_process_config_cmd();
+	tof_dev_mgr_process();
 	// Process the tof_service hvx indications queue if not empty
 	tof_hvx_gatts_queue_process();
 	// Check debug commands
@@ -1348,7 +1351,7 @@ int main(void) {
 	ble_stack_init();
 
 	tof_pwr_init();
-	tof_device_init();
+	tof_dev_mgr_init();
 
 	peer_manager_init();
 	gap_params_init();

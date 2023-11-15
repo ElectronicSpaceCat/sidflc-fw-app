@@ -18,13 +18,13 @@
  *******************************************************************************/
 
 #include <string.h>
-#include <sys_utils.h>
+#include "utils.h"
 
 /**
  * Function for reducing raw version data from memory to a readable semantic format.
  * Output follows the format major.minor.revision  i.e. "1.0.0"
  */
-void sys_utils_reduce_version_str(const char* str_buff, char* buff) {
+void tof_utils_reduce_version_str(const char* str_buff, char* buff) {
     size_t slen = strlen(str_buff);
     uint8_t counter = slen % 2;
     uint8_t idx = 0;

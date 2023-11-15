@@ -10,21 +10,23 @@ SOFT_DEVICE_VERSION := 7.2.0
 VL53L4CX_ROOT := $(PROJ_DIR)/libs/VL53L4CX_API_v1.2.8
 
 $(OUTPUT_DIRECTORY)/$(TARGETS).out: \
-  LINKER_SCRIPT := $(LINKER_DIR)/ble_gcc_nrf52_sd.ld
+  LINKER_SCRIPT  := $(LINKER_DIR)/ble_gcc_nrf52_sd.ld
 
 # Source files common to all targets
 SRC_FILES += \
 	$(PROJ_DIR)/src/main.c \
-	$(PROJ_DIR)/src/pwr_mgr.c \
-	$(PROJ_DIR)/src/fds_mgr.c \
-	$(PROJ_DIR)/src/sys_utils.c \
-	$(PROJ_DIR)/src/debug_cli.c \
+	$(PROJ_DIR)/src/tof_twi.c \
 	$(PROJ_DIR)/src/timer_delay.c \
+	$(PROJ_DIR)/src/fds_mgr.c \
+	$(PROJ_DIR)/src/utils.c \
+	$(PROJ_DIR)/src/config_cmd.c \
+	$(PROJ_DIR)/src/tof_sensor.c \
+	$(PROJ_DIR)/src/tof_device_mgr.c \
 	$(PROJ_DIR)/src/ble_pwr_service.c \
 	$(PROJ_DIR)/src/ble_tof_service.c \
-	$(PROJ_DIR)/src/tof_twi.c \
-	$(PROJ_DIR)/src/tof_device.c \
-	$(PROJ_DIR)/src/tof_VL53LX_states.c \
+	$(PROJ_DIR)/src/debug_cli.c \
+	$(PROJ_DIR)/src/tof_vl53lx.c \
+	$(PROJ_DIR)/src/pwr_mgr.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api_calibration.c \
 	$(VL53L4CX_ROOT)/core/src/vl53lx_api_core.c \
@@ -279,7 +281,7 @@ OPT = -Os -g3
 
 # Common user defines
 CDEFS += -DBOARD_CUSTOM
-CDEFS += -DBT_VERSION_5_0
+CDEFS += -DBT_VERSION_6_0
 CDEFS += -DSOFTDEVICE_PRESENT
 CDEFS += -DNRF52
 CDEFS += -DNRF52832_XXAA
@@ -322,8 +324,9 @@ ASMFLAGS += $(CDEFS)
 
 # Linker flags
 LDFLAGS += $(OPT)
-LDFLAGS += $(CHDEFS)
-LDFLAGS += -L$(SDK_ROOT)/modules/nrfx/mdk -T$(LINKER_SCRIPT)
+LDFLAGS += -mthumb -mabi=aapcs -L$(SDK_ROOT)/modules/nrfx/mdk -T$(LINKER_SCRIPT)
+LDFLAGS += -mcpu=cortex-m4
+LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker dump unused sections
 LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version

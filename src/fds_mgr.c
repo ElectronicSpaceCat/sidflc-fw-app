@@ -17,15 +17,12 @@
  
  *******************************************************************************/
 
-#include <fds_mgr.h>
+#include "fds_mgr.h"
+#include "timer_delay.h"
 #include <string.h>
-
 #include "fds.h"
-
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
-
-#include "timer_delay.h"
 
 static fds_record_t record;
 static fds_record_desc_t record_desc;
@@ -35,7 +32,7 @@ static bool fds_inited = false;
 
 static volatile uint8_t m_tof_dfs_active = false;
 
-static ret_code_t tof_fds_gc(void);
+static ret_code_t fds_mgr_gc(void);
 
 static const char* fds_evt_id_str(fds_evt_id_t evt_id){
     switch (evt_id){
@@ -115,7 +112,7 @@ static void fds_evt_handler(fds_evt_t const *p_fds_evt){
     m_tof_dfs_active = false;
 }
 
-ret_code_t tof_fds_init(void) {
+ret_code_t fds_mgr_init(void) {
     ret_code_t status = NRF_SUCCESS;
 
     if(!fds_registered){
@@ -140,7 +137,7 @@ ret_code_t tof_fds_init(void) {
     return status;
 }
 
-ret_code_t tof_fds_write(uint16_t file_id, uint16_t record_key,uint8_t* data, size_t data_len) {
+ret_code_t fds_mgr_write(uint16_t file_id, uint16_t record_key,uint8_t* data, size_t data_len) {
     uint16_t lfile_id = file_id;
     uint16_t lrecord_key = record_key;
 
@@ -185,12 +182,12 @@ ret_code_t tof_fds_write(uint16_t file_id, uint16_t record_key,uint8_t* data, si
         return status;
     }
 
-    status = tof_fds_gc();
+    status = fds_mgr_gc();
 
     return status;
 }
 
-ret_code_t tof_fds_read(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len) {
+ret_code_t fds_mgr_read(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len) {
     uint16_t lfile_id = file_id;
     uint16_t lrecord_key = record_key;
 
@@ -225,7 +222,7 @@ ret_code_t tof_fds_read(uint16_t file_id, uint16_t record_key, uint8_t* data, si
     return status;
 }
 
-ret_code_t tof_fds_delete(uint16_t file_id, uint16_t record_key) {
+ret_code_t fds_mgr_delete(uint16_t file_id, uint16_t record_key) {
     uint16_t lfile_id = file_id;
     uint16_t lrecord_key = record_key;
 
@@ -244,7 +241,7 @@ ret_code_t tof_fds_delete(uint16_t file_id, uint16_t record_key) {
         status = fds_record_delete(&record_desc);
         if (!status){
             wfe(&m_tof_dfs_active);
-            status = tof_fds_gc();
+            status = fds_mgr_gc();
             if(status){
                 break;
             }
@@ -257,7 +254,7 @@ ret_code_t tof_fds_delete(uint16_t file_id, uint16_t record_key) {
     return status;
 }
 
-static ret_code_t tof_fds_gc(void){
+static ret_code_t fds_mgr_gc(void){
     m_tof_dfs_active = true;
     ret_code_t status = fds_gc();
     if (!status){

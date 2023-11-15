@@ -17,8 +17,8 @@
  
  *******************************************************************************/
 
-#ifndef SRC_FDS_MGR_H
-#define SRC_FDS_MGR_H
+#ifndef FDS_MGR_H
+#define FDS_MGR_H
 
 #include "boards.h"
 #include <stdint.h>
@@ -27,10 +27,9 @@
  * Note: - Record keys should be in the range 0x0001 - 0xBFFF
  *       - File IDs    should be in the range 0x0000 - 0xBFFF
  */
+ret_code_t fds_mgr_init(void);
+ret_code_t fds_mgr_write(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len);
+ret_code_t fds_mgr_read(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len);
+ret_code_t fds_mgr_delete(uint16_t file_id, uint16_t record_key);
 
-ret_code_t tof_fds_init(void);
-ret_code_t tof_fds_write(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len);
-ret_code_t tof_fds_read(uint16_t file_id, uint16_t record_key, uint8_t* data, size_t data_len);
-ret_code_t tof_fds_delete(uint16_t file_id, uint16_t record_key);
-
-#endif /* SRC_FDS_MGR_H */
+#endif /* FDS_MGR_H */
