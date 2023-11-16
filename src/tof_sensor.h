@@ -26,14 +26,14 @@
 #include "config_cmd.h"
 
 /** Default i2c address for the ToF sensors */
-#define I2C_ADDR_DEFAULT           (0x29)
+#define I2C_ADDR_DEFAULT              (0x29)
 /** Timeout before rebooting the sensor */
-#define ERR_TIMEOUT_MS              APP_TIMER_TICKS(2500)
+#define ERR_TIMEOUT_MS                APP_TIMER_TICKS(2500)
 /** FDS defines for sensor configurations */
-#define RKEY_SNSR_DATA_CAL          (0x5001)
-#define RKEY_SNSR_DATA_USER         (0x5002)
-#define MAX_SNSR_CONFIG_BUFF_SIZE   (20)
-#define FILD_ID_SNSR_DATA(snsr_id)  (0x0500 | snsr_id)
+#define RKEY_SNSR_DATA_CAL            (0x5001)
+#define RKEY_SNSR_DATA_USER           (0x5002)
+#define MAX_SNSR_CONFIG_BUFF_SIZE     (20)
+#define FILD_ID_SNSR_DATA(snsr_id)    (0x0500 | snsr_id)
 /** Macro for calculating the sensor configurations storage size to FDS */
 #define SNSR_CFG_STORAGE_SIZE(device) (device->sensor->num_configs * sizeof(int32_t))
 
@@ -48,10 +48,10 @@ typedef enum {
  * with the status */
 typedef enum {
     TOF_SENSOR_ERR_NONE = 0,
-	TOF_SENSOR_ERR_INVALID_TYPE,
-	TOF_SENSOR_ERR_SENSOR_CREATE,
-	TOF_SENSOR_ERR_SENSOR_INIT,
-	TOF_SENSOR_ERR_SENSOR_INTERNAL,
+    TOF_SENSOR_ERR_INVALID_TYPE,
+    TOF_SENSOR_ERR_SENSOR_CREATE,
+    TOF_SENSOR_ERR_SENSOR_INIT,
+    TOF_SENSOR_ERR_SENSOR_INTERNAL,
     TOF_SENSOR_ERR_COMMS,
     NUM_SENSOR_ERR,
     TOF_SENSOR_ERR_NA
@@ -70,16 +70,16 @@ typedef enum {
 
 typedef enum {
     TOF_SENSOR_CONFIG_TYPE_PARAM = 0,
-	TOF_SENSOR_CONFIG_TYPE_CAL,
+    TOF_SENSOR_CONFIG_TYPE_CAL,
     NUM_TOF_SENSOR_CONFIG_TYPES,
-	TOF_SENSOR_CONFIG_TYPE_NA
+    TOF_SENSOR_CONFIG_TYPE_NA
 } tof_sensor_config_type_t;
 
 typedef enum {
-	TOF_SENSOR_RESET_SENSOR = 0,      // Reset sensor and maintains stored configurations
+    TOF_SENSOR_RESET_SENSOR = 0,      // Reset sensor and maintains stored configurations
     TOF_SENSOR_RESET_SENSOR_FACTORY,  // Reset sensor and clears stored configurations
     NUM_TOF_RESET_OPTIONS,
-	TOF_RESET_NA
+    TOF_RESET_NA
 } tof_sensor_reset_cmd_t;
 
 /** Data types from the sensors wrapper

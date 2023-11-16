@@ -138,17 +138,17 @@ ret_code_t tof_twi_uninit(void){
 }
 
 static ret_code_t map_evt_to_nrf_err(nrfx_twim_evt_type_t evt){
-    switch(evt){
-		case NRFX_TWIM_EVT_DONE:
-			return NRFX_SUCCESS;
-		case NRFX_TWIM_EVT_ADDRESS_NACK:
-			return NRFX_ERROR_DRV_TWI_ERR_ANACK;
-		case NRFX_TWIM_EVT_DATA_NACK:
-			return NRFX_ERROR_DRV_TWI_ERR_DNACK;
-		case NRFX_TWIM_EVT_OVERRUN:
-			return NRFX_ERROR_DRV_TWI_ERR_OVERRUN;
-		case NRFX_TWIM_EVT_BUS_ERROR:
-		default:
-			return NRFX_ERROR_INTERNAL;
+    switch (evt) {
+        case NRFX_TWIM_EVT_DONE:
+            return NRFX_SUCCESS;
+        case NRFX_TWIM_EVT_ADDRESS_NACK:
+            return NRFX_ERROR_DRV_TWI_ERR_ANACK;
+        case NRFX_TWIM_EVT_DATA_NACK:
+            return NRFX_ERROR_DRV_TWI_ERR_DNACK;
+        case NRFX_TWIM_EVT_OVERRUN:
+            return NRFX_ERROR_DRV_TWI_ERR_OVERRUN;
+        case NRFX_TWIM_EVT_BUS_ERROR:
+        default:
+            return NRFX_ERROR_INTERNAL;
     }
 }

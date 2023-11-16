@@ -177,7 +177,7 @@ static void state_boot(void) {
         shandle->sensor->state = state_err;
         return;
     }
-    // Get device information (only use if comparing sensor meta data)
+    // Get device information (not really necessary)
     VL53LX_DeviceInfo_t dInfo;
     if (!VL53LX_GetDeviceInfo(VL53LX(shandle->sensor), &dInfo)) {
         NRF_LOG_INFO("%s get info", shandle->sensor->name);
@@ -193,7 +193,7 @@ static void state_boot(void) {
 
 static void state_prepare(void) {
     // Data init
-    if (!VL53LX_DataInit(VL53LX(shandle->sensor))) {
+    if (!VL53LX_DataInit (VL53LX(shandle->sensor))) {
         NRF_LOG_INFO("%s data init", shandle->sensor->name);
     }
     else {
@@ -202,70 +202,89 @@ static void state_prepare(void) {
         return;
     }
     // Load and copy default configurations
-    load_default_configs();
+    load_default_configs ();
     // Handle any reset commands
-    switch(shandle->reset_cmd) {
-    	default:
-		case TOF_SENSOR_RESET_SENSOR:
-		    // Read calibration data from storage if it exists
-		    if(fds_mgr_read(
-		    		FILD_ID_SNSR_DATA(shandle->sensor->id),
-					RKEY_SNSR_DATA_CAL,
-		            (uint8_t*)&VL53LX_DATA(shandle->sensor)->cal,
-		            sizeof(VL53LX_DATA(shandle->sensor)->cal))){
-
-		    	break;
-		    }
-			// Set calibration data
-			if (!VL53LX_SetCalibrationData(VL53LX(shandle->sensor), &VL53LX_DATA(shandle->sensor)->cal)) {
-				NRF_LOG_INFO("%s set cal data", shandle->sensor->name);
-			}
-			else {
-				NRF_LOG_INFO("%s err: set cal data", shandle->sensor->name);
-			}
-			// Read user configurations from storage if it exists
-			if(fds_mgr_read(
-					FILD_ID_SNSR_DATA(shandle->sensor->id),
-					RKEY_SNSR_DATA_USER,
-					(uint8_t*)&cfg_buff,
-					SNSR_CFG_STORAGE_SIZE(shandle))){
-
-				break;
-			}
-			// Set Distance mode first (according to data sheet)
-			if(CONFIG_STAT_ERROR != set_config(shandle->sensor, CONFIG_DISTANCE_MODE, cfg_buff[CONFIG_DISTANCE_MODE])){
-				load_config(shandle->sensor, CONFIG_DISTANCE_MODE);
-				NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(CONFIG_DISTANCE_MODE));
-			}
-			else{
-				NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_DISTANCE_MODE));
-				shandle->sensor->state = state_err;
-			}
-			// Set rest of the configurations
-			for(int i = 0; i < shandle->sensor->num_configs; ++i){
-				// Skip Distance mode since it's handled outside the loop
-				if(CONFIG_DISTANCE_MODE == i){
-					continue;
-				}
-				// Skip non parameter configuration types
-				if(TOF_SENSOR_CONFIG_TYPE_PARAM != shandle->sensor->config[i].type){
-					continue;
-				}
-				// Set the configuration. If no error then cache the value
-				if(CONFIG_STAT_ERROR != set_config(shandle->sensor, i, cfg_buff[i])){
-					load_config(shandle->sensor, i);
-					NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(i));
-				}
-				else{
-					NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(i));
-					shandle->sensor->state = state_err;
-				}
-			}
-			break;
-		case TOF_SENSOR_RESET_SENSOR_FACTORY:
-			fds_mgr_delete(FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_CAL);
-			fds_mgr_delete(FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_USER);
-			break;
+    switch (shandle->reset_cmd) {
+        default:
+        case TOF_SENSOR_RESET_SENSOR:
+            // Read calibration data from storage if it exists
+            if (fds_mgr_read (
+                    FILD_ID_SNSR_DATA(shandle->sensor->id),
+                    RKEY_SNSR_DATA_CAL,
+                    (uint8_t*) &VL53LX_DATA(shandle->sensor)->cal,
+                    sizeof(VL53LX_DATA(shandle->sensor)->cal)))
+            {
+                /**
+                 * No calibration data read - so run a basic calibrations on startup
+                 */
+                // Perform ref spad
+                if (!set_config(shandle->sensor, CONFIG_CAL_REFSPAD, 0)) {
+                    NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(CONFIG_CAL_REFSPAD));
+                }
+                else {
+                    NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_CAL_REFSPAD));
+                    shandle->sensor->state = state_err;
+                }
+                // Perform xtalk
+                if (!set_config(shandle->sensor, CONFIG_CAL_XTALK, 0)) {
+                    NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(CONFIG_CAL_XTALK));
+                }
+                else {
+                    NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_CAL_XTALK));
+                    shandle->sensor->state = state_err;
+                }
+                break;
+            }
+            // Set calibration data
+            if (!VL53LX_SetCalibrationData (VL53LX(shandle->sensor), &VL53LX_DATA(shandle->sensor)->cal)) {
+                NRF_LOG_INFO("%s set cal data", shandle->sensor->name);
+            }
+            else {
+                NRF_LOG_INFO("%s err: set cal data", shandle->sensor->name);
+            }
+            // Read user configurations from storage if it exists
+            if (fds_mgr_read (
+                    FILD_ID_SNSR_DATA(shandle->sensor->id),
+                    RKEY_SNSR_DATA_USER,
+                    (uint8_t*) &cfg_buff,
+                    SNSR_CFG_STORAGE_SIZE(shandle)))
+            {
+                break;
+            }
+            // Set Distance mode first (according to data sheet)
+            if (CONFIG_STAT_ERROR != set_config (shandle->sensor, CONFIG_DISTANCE_MODE, cfg_buff[CONFIG_DISTANCE_MODE])) {
+                load_config (shandle->sensor, CONFIG_DISTANCE_MODE);
+                NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str (CONFIG_DISTANCE_MODE));
+            }
+            else {
+                NRF_LOG_INFO("%s set %s: error",shandle->sensor->name, get_config_str (CONFIG_DISTANCE_MODE));
+                shandle->sensor->state = state_err;
+            }
+            // Set rest of the configurations
+            for (int i = 0; i < shandle->sensor->num_configs; ++i) {
+                // Skip Distance mode since it's handled outside the loop
+                if (CONFIG_DISTANCE_MODE == i) {
+                    continue;
+                }
+                // Skip non parameter configuration types
+                if (TOF_SENSOR_CONFIG_TYPE_PARAM != shandle->sensor->config[i].type) {
+                    continue;
+                }
+                // Set the configuration. If no error then cache the value
+                if (CONFIG_STAT_ERROR != set_config (shandle->sensor, i, cfg_buff[i])) {
+                    load_config (shandle->sensor, i);
+                    NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str (i));
+                }
+                else {
+                    NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str (i));
+                    shandle->sensor->state = state_err;
+                }
+            }
+            break;
+        case TOF_SENSOR_RESET_SENSOR_FACTORY:
+            fds_mgr_delete (FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_CAL);
+            fds_mgr_delete (FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_USER);
+            break;
     }
 
     // Go to state_init
@@ -433,18 +452,18 @@ static void state_err_timeout(void) {
 }
 
 static void state_config(void) {
-	if(shandle->config_pending){
-		// Process the configuration
-		cfg_cmd_process_msg(shandle->sensor->name, &shandle->config_cmd, &config_cmd_handler);
-		// Notify user
-		tof_sensor_data_callback(TOF_DATA_CONFIG, &shandle->config_cmd);
-	    // Reset the pending flag
-	    shandle->config_pending = false;
-	}
-	else{
-		// Reset state to idle
-		shandle->sensor->state = state_idle;
-	}
+    if (shandle->config_pending) {
+        // Process the configuration
+        cfg_cmd_process_msg (shandle->sensor->name, &shandle->config_cmd, &config_cmd_handler);
+        // Notify user
+        tof_sensor_data_callback (TOF_DATA_CONFIG, &shandle->config_cmd);
+        // Reset the pending flag
+        shandle->config_pending = false;
+    }
+    else {
+        // Reset state to idle
+        shandle->sensor->state = state_idle;
+    }
 }
 
 static void config_cmd_handler(cfg_cmd_data_t* cfg) {
@@ -489,10 +508,10 @@ static void config_cmd_handler(cfg_cmd_data_t* cfg) {
             VL53LX_GetCalibrationData(VL53LX(shandle->sensor), &VL53LX_DATA(shandle->sensor)->cal);
             // Store the cal data
             fds_mgr_write(
-            		FILD_ID_SNSR_DATA(shandle->sensor->id),
-					RKEY_SNSR_DATA_CAL,
-                    (uint8_t*)&VL53LX_DATA(shandle->sensor)->cal,
-                    sizeof(VL53LX_DATA(shandle->sensor)->cal));
+                FILD_ID_SNSR_DATA(shandle->sensor->id),
+                RKEY_SNSR_DATA_CAL,
+                (uint8_t*)&VL53LX_DATA(shandle->sensor)->cal,
+                sizeof(VL53LX_DATA(shandle->sensor)->cal));
 
             // Buffer user configurations
             for(int i = 0; i < shandle->sensor->num_configs; ++i){
@@ -500,10 +519,10 @@ static void config_cmd_handler(cfg_cmd_data_t* cfg) {
             }
             // Store user configurations
             fds_mgr_write(
-            		FILD_ID_SNSR_DATA(shandle->sensor->id),
-					RKEY_SNSR_DATA_USER,
-                    (uint8_t*)&cfg_buff,
-					SNSR_CFG_STORAGE_SIZE(shandle));
+                FILD_ID_SNSR_DATA(shandle->sensor->id),
+                RKEY_SNSR_DATA_USER,
+                (uint8_t*)&cfg_buff,
+                SNSR_CFG_STORAGE_SIZE(shandle));
             return;
         default:
             shandle->config_cmd.status = CONFIG_STAT_INVALID;

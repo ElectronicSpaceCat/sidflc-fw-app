@@ -27,38 +27,38 @@ static void cfg_cmd_log_cmd_msg(const char* src, const cfg_cmd_data_t* cfg);
 static void cfg_cmd_log_cmd_msg_resp(const char* src, const cfg_cmd_data_t* cfg);
 
 void cfg_cmd_process_msg(const char* src, cfg_cmd_data_t* cfg, cfg_cmd_handler_t handler) {
-	cfg_cmd_log_cmd_msg(src, cfg);
+    cfg_cmd_log_cmd_msg (src, cfg);
 
-	if(handler){
-		handler(cfg);
-	}
+    if (handler) {
+        handler (cfg);
+    }
 
-	cfg_cmd_log_cmd_msg_resp(src, cfg);
+    cfg_cmd_log_cmd_msg_resp (src, cfg);
 }
 
 void cfg_cmd_log_cmd_msg(const char* src, const cfg_cmd_data_t* cfg) {
-	NRF_LOG_INFO("%s << cmd: %s, cfg: %d, value: %d",
-		src,
-		cfg_cmd_get_cmd_str(cfg->cmd),
-		cfg->id,
-		cfg->value
-	);
+    NRF_LOG_INFO("%s << cmd: %s, cfg: %d, value: %d",
+        src,
+        cfg_cmd_get_cmd_str(cfg->cmd),
+        cfg->id,
+        cfg->value
+    );
 }
 
 void cfg_cmd_log_cmd_msg_resp(const char* src, const cfg_cmd_data_t* cfg) {
-	NRF_LOG_INFO("%s >> cmd: %s, cfg: %d, value: %d, status: %s",
-		src,
-		cfg_cmd_get_cmd_str(cfg->cmd),
-		cfg->id,
-		cfg->value,
-		cfg_cmd_get_cmd_status_str(cfg->status)
-	);
+    NRF_LOG_INFO("%s >> cmd: %s, cfg: %d, value: %d, status: %s",
+        src,
+        cfg_cmd_get_cmd_str(cfg->cmd),
+        cfg->id,
+        cfg->value,
+        cfg_cmd_get_cmd_status_str(cfg->status)
+    );
 }
 
 /**
  * Get configuration command string
  */
-static const char* cfg_cmd_get_cmd_str(uint8_t cmd){
+static const char* cfg_cmd_get_cmd_str (uint8_t cmd) {
     switch (cmd) {
         case CONFIG_CMD_GET:
             return "get";
