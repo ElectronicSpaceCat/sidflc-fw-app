@@ -64,8 +64,7 @@ tof_dev_mgr_process_cfg_cmd (void);
 static void
 tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd);
 
-void
-tof_dev_mgr_init (void) {
+void tof_dev_mgr_init (void) {
     tof_dev_mgr_err_t error = TOF_DEV_MGR_ERR_NONE;
     /* Initialize the i2c interface */
     error = tof_twi_init ();
@@ -100,13 +99,11 @@ tof_dev_mgr_init (void) {
     NRF_LOG_INFO("ToF initialized");
 }
 
-void
-tof_dev_mgr_uninit (void) {
+void tof_dev_mgr_uninit (void) {
     tof_twi_uninit ();
 }
 
-void
-tof_dev_mgr_process (void) {
+void tof_dev_mgr_process (void) {
     // Make sure manager is initialized
     if (!initialized || !should_run)
         return;
@@ -140,8 +137,7 @@ tof_dev_mgr_process (void) {
     should_run = false;
 }
 
-void
-tof_dev_mgr_set_cfg_cmd (uint8_t trgt, uint8_t cmd, uint8_t id, int32_t value) {
+void tof_dev_mgr_set_cfg_cmd (uint8_t trgt, uint8_t cmd, uint8_t id, int32_t value) {
     switch (trgt) {
         case DEV_CFG_TRGT_SNSR:
             shandle.config_cmd.cmd = cmd;
@@ -160,8 +156,7 @@ tof_dev_mgr_set_cfg_cmd (uint8_t trgt, uint8_t cmd, uint8_t id, int32_t value) {
     }
 }
 
-void
-tof_dev_mgr_sensor_select (tof_dev_mgr_sensor_id_t id) {
+void tof_dev_mgr_sensor_select (tof_dev_mgr_sensor_id_t id) {
     if (shandle.sensor->id == id) {
         NRF_LOG_INFO("%s already selected", shandle.sensor->name);
         tof_sensor_data_callback (TOF_DATA_SELECTED, shandle.sensor);
@@ -177,13 +172,11 @@ tof_dev_mgr_sensor_select (tof_dev_mgr_sensor_id_t id) {
     }
 }
 
-const tof_sensor_handle_t*
-tof_dev_mgr_shandle_get (void) {
+const tof_sensor_handle_t* tof_dev_mgr_shandle_get (void) {
     return &shandle;
 }
 
-int32_t
-tof_dev_mgr_get_cached_config (dev_cfg_trgt_t trgt, uint8_t config_id) {
+int32_t tof_dev_mgr_get_cached_config (dev_cfg_trgt_t trgt, uint8_t config_id) {
     switch (trgt) {
         case DEV_CFG_TRGT_SNSR:
             if (config_id < shandle.sensor->num_configs) {
@@ -202,8 +195,7 @@ tof_dev_mgr_get_cached_config (dev_cfg_trgt_t trgt, uint8_t config_id) {
     return INVALID_CONFIG_VALUE;
 }
 
-void
-tof_dev_mgr_set_debug_enable (uint8_t value) {
+void tof_dev_mgr_set_debug_enable (uint8_t value) {
     shandle.debug_enabled = value ? 1 : 0;
     // Print message
     if (shandle.debug_enabled) {
@@ -214,8 +206,7 @@ tof_dev_mgr_set_debug_enable (uint8_t value) {
     }
 }
 
-void
-tof_dev_mgr_set_ranging_enable (uint8_t value) {
+void tof_dev_mgr_set_ranging_enable (uint8_t value) {
     shandle.ranging_enabled = value ? 1 : 0;
     // Print message
     if (shandle.ranging_enabled) {
@@ -228,20 +219,17 @@ tof_dev_mgr_set_ranging_enable (uint8_t value) {
     tof_sensor_data_callback (TOF_DATA_SAMPLING_ENABLED, &shandle.ranging_enabled);
 }
 
-void
-tof_dev_mgr_sensor_reset (uint8_t reset_type) {
+void tof_dev_mgr_sensor_reset (uint8_t reset_type) {
     shandle.reset_cmd = reset_type;
 }
 
-void
-tof_dev_mgr_set_run_signal (void) {
+void tof_dev_mgr_set_run_signal (void) {
     if (!should_run) {
         should_run = true;
     }
 }
 
-static tof_dev_mgr_err_t
-tof_dev_mgr_sensor_init (const tof_sensor_handle_t *shandle, tof_sensor_t *sensor) {
+static tof_dev_mgr_err_t tof_dev_mgr_sensor_init (const tof_sensor_handle_t *shandle, tof_sensor_t *sensor) {
     if (sensor->id >= NUM_TOF_SENSOR_TYPES) {
         return TOF_DEV_MGR_ERR_SENSOR_IDX_OOR;
     }
@@ -265,8 +253,7 @@ tof_dev_mgr_sensor_init (const tof_sensor_handle_t *shandle, tof_sensor_t *senso
     return TOF_SENSOR_ERR_NONE;
 }
 
-static void
-tof_dev_mgr_process_cfg_cmd (void) {
+static void tof_dev_mgr_process_cfg_cmd (void) {
     switch (cfg_cmd.d.trgt) {
         case DEV_CFG_TRGT_SNSR:
             return;
@@ -292,8 +279,7 @@ tof_dev_mgr_process_cfg_cmd (void) {
  * Handles configuration commands for getting/storing external data.
  * User can stored any uint32_t data up to an index id < MAX_STORAGE_DATA_BUFF_SIZE
  */
-static void
-tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd) {
+static void tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd) {
     uint8_t id = config_cmd->id;
     uint8_t cmd = config_cmd->cmd;
     int32_t value = config_cmd->value;
@@ -326,8 +312,7 @@ tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd) {
     }
 }
 
-static const char*
-tof_dev_mgr_get_error_str (tof_dev_mgr_err_t error) {
+static const char* tof_dev_mgr_get_error_str (tof_dev_mgr_err_t error) {
     switch (error) {
         case TOF_DEV_MGR_ERR_NONE:
             return "ok";
@@ -347,7 +332,6 @@ tof_dev_mgr_get_error_str (tof_dev_mgr_err_t error) {
     }
 }
 
-static void
-tof_dev_mgr_on_error_handler (tof_dev_mgr_err_t error) {
+static void tof_dev_mgr_on_error_handler (tof_dev_mgr_err_t error) {
     NRF_LOG_INFO("ToF err: snsr_mgr - %s", tof_dev_mgr_get_error_str (error));
 }
