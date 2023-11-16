@@ -224,6 +224,7 @@ static void state_prepare(void) {
                 else {
                     NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_CAL_REFSPAD));
                     shandle->sensor->state = state_err;
+                    return;
                 }
                 // Perform xtalk
                 if (!set_config(shandle->sensor, CONFIG_CAL_XTALK, 0)) {
@@ -232,6 +233,7 @@ static void state_prepare(void) {
                 else {
                     NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_CAL_XTALK));
                     shandle->sensor->state = state_err;
+                    return;
                 }
                 break;
             }
@@ -259,6 +261,7 @@ static void state_prepare(void) {
             else {
                 NRF_LOG_INFO("%s set %s: error",shandle->sensor->name, get_config_str (CONFIG_DISTANCE_MODE));
                 shandle->sensor->state = state_err;
+                return;
             }
             // Set rest of the configurations
             for (int i = 0; i < shandle->sensor->num_configs; ++i) {
@@ -278,6 +281,7 @@ static void state_prepare(void) {
                 else {
                     NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str (i));
                     shandle->sensor->state = state_err;
+                    return;
                 }
             }
             break;
