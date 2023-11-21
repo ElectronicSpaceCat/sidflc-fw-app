@@ -52,17 +52,11 @@ static int32_t user_fds_data[MAX_USER_CONFIG_BUFF_SIZE];
 static bool initialized = false;
 static bool should_run = false;
 
-static const char*
-tof_dev_mgr_get_error_str (tof_dev_mgr_err_t error);
-static void
-tof_dev_mgr_on_error_handler (tof_dev_mgr_err_t error);
-static tof_dev_mgr_err_t
-tof_dev_mgr_sensor_init (const tof_sensor_handle_t *shandle,
-                         tof_sensor_t *sensor);
-static void
-tof_dev_mgr_process_cfg_cmd (void);
-static void
-tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd);
+static const char*tof_dev_mgr_get_error_str (tof_dev_mgr_err_t error);
+static void tof_dev_mgr_on_error_handler (tof_dev_mgr_err_t error);
+static tof_dev_mgr_err_t tof_dev_mgr_sensor_init (const tof_sensor_handle_t *shandle, tof_sensor_t *sensor);
+static void tof_dev_mgr_process_cfg_cmd (void);
+static void tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd);
 
 void tof_dev_mgr_init (void) {
     tof_dev_mgr_err_t error = TOF_DEV_MGR_ERR_NONE;
