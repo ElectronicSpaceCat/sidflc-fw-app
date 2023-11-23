@@ -130,10 +130,8 @@ tof_sensor_err_t vl53lx_init(const tof_sensor_handle_t* handle, tof_sensor_t* se
 }
 
 static void err_timeout_timer_handler(void *p_context) {
-	tof_sensor_handle_t *shandle = (tof_sensor_handle_t*) p_context;
+    tof_sensor_handle_t *shandle = (tof_sensor_handle_t*) p_context;
     shandle->sensor->state = state_boot;
-    shandle->sensor->status = TOF_SENSOR_STATUS_ERROR;
-    tof_sensor_data_callback(TOF_DATA_STATUS, &shandle->sensor->status);
 }
 
 static void load_default_configs(void) {
@@ -447,6 +445,9 @@ static void state_err(void) {
     APP_ERROR_CHECK(err_code);
     err_code = app_timer_start(err_timeout_timer_id, ERR_TIMEOUT_MS, shandle->sensor);
     APP_ERROR_CHECK(err_code);
+
+    shandle->sensor->status = TOF_SENSOR_STATUS_ERROR;
+    tof_sensor_data_callback(TOF_DATA_STATUS, &shandle->sensor->status);
 
     shandle->sensor->state = state_err_timeout;
 }

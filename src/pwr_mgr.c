@@ -70,21 +70,21 @@ typedef enum {
  * which is voltage divided from 4.2V to 1.8V as an input
  * to the nRF5X chip. T
  */
-#define SAADC_SAMPLES_IN_BUFFER                 1    //Number of SAADC samples in RAM before returning a SAADC event. For low power SAADC set this constant to 1.
-                                                     //  Otherwise the EasyDMA will be enabled for an extended time which consumes high current.
-#define SAADC_OVERSAMPLE                        NRF_SAADC_OVERSAMPLE_4X  //Oversampling setting for the SAADC. Setting oversample to 4x This will make the SAADC output
-                                                                         //  a single averaged value when the SAMPLE task is triggered 4 times.
-                                                                         //  Enable BURST mode to make the SAADC sample 4 times when triggering SAMPLE task once.
+#define SAADC_SAMPLES_IN_BUFFER                 1    // Number of SAADC samples in RAM before returning a SAADC event. For low power SAADC set this constant to 1.
+                                                     //    Otherwise the EasyDMA will be enabled for an extended time which consumes high current.
+#define SAADC_OVERSAMPLE                        NRF_SAADC_OVERSAMPLE_4X  // Oversampling setting for the SAADC. Setting oversample to 4x This will make the SAADC output
+                                                                         //    a single averaged value when the SAMPLE task is triggered 4 times.
+                                                                         //    Enable BURST mode to make the SAADC sample 4 times when triggering SAMPLE task once.
 #define SAADC_BURST_MODE                        1    //Set to 1 to enable BURST mode, otherwise set to 0.
 #define SAADC_GAIN                              NRF_SAADC_GAIN1_3
 
 #define ADC_VIN_TO_VBATT_FACTOR                 (4200.0f / 1800.0f) // The voltage divider is set to convert 4.2V (typical LiPo batt voltage) to 1.8V so 4200/1800 = ~2.333
 #define ADC_MVOLTS_TO_VBATT_MVOLTS(MVOLTS)      (MVOLTS * ADC_VIN_TO_VBATT_FACTOR)
 
-#define ADC_REF_VOLTAGE_IN_MILLIVOLTS           600  /**< Reference voltage 0.6V (in milli volts) used by ADC while doing conversion. */
-#define ADC_PRE_SCALING_COMPENSATION            3    /**< The ADC is configured to use VDD with 1/3 prescaling as input. And hence the result of conversion is to be
-                                                          multiplied by 3 to get the actual value of the battery voltage.*/
-#define ADC_RESOLUTION                          4096 /**< Maximum digital value for 12-bit ADC conversion 2^12 = 4096. */
+#define ADC_REF_VOLTAGE_IN_MILLIVOLTS           600  // Reference voltage 0.6V (in milli volts) used by ADC while doing conversion.
+#define ADC_PRE_SCALING_COMPENSATION            3    // The ADC is configured to use VDD with 1/3 prescaling as input. And hence the result of conversion is to be
+                                                     //     multiplied by 3 to get the actual value of the battery voltage.
+#define ADC_RESOLUTION                          4096 // Maximum digital value for 12-bit ADC conversion 2^12 = 4096.
 #define ADC_RESULT_IN_MILLI_VOLTS(ADC_VALUE)\
         ((ADC_VALUE * ADC_REF_VOLTAGE_IN_MILLIVOLTS * ADC_PRE_SCALING_COMPENSATION) / ADC_RESOLUTION)
 
