@@ -84,6 +84,7 @@ void tof_dev_mgr_init (void) {
     }
     // Initialize device data
     shandle.id_selected = TOF_DEV_MGR_SNSR_SHORT_RANGE;
+    shandle.reset_cmd = TOF_RESET_NA;
     shandle.ranging_enabled = false;
     shandle.debug_enabled = false;
     shandle.sensor = &sensors[shandle.id_selected];

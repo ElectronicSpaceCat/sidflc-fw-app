@@ -88,8 +88,8 @@ static int32_t cfg_buff[MAX_SNSR_CONFIG_BUFF_SIZE];
 APP_TIMER_DEF(err_timeout_timer_id);
 
 // Helper macros to access sensor data
-#define VL53LX(snsr)        ((VL53LX_DEV)&(((vl53lx_data_t*)snsr->context)->sensor))
 #define VL53LX_DATA(snsr)   ((vl53lx_data_t*)snsr->context)
+#define VL53LX(snsr)        ((VL53LX_DEV)&(VL53LX_DATA(snsr)->sensor))
 
 #if (NUM_CONFIGS > MAX_SNSR_CONFIG_BUFF_SIZE)
 #error Increase MAX_SNSR_CONFIG_BUFF_SIZE to handle NUM_CONFIGS for this device
@@ -98,31 +98,31 @@ APP_TIMER_DEF(err_timeout_timer_id);
 static tof_sensor_handle_t* shandle = NULL;
 
 tof_sensor_err_t vl53lx_init(const tof_sensor_handle_t* handle, tof_sensor_t* sensor){
-	// Set the sensor handle
-	if(!shandle){
-		shandle = (tof_sensor_handle_t*)handle;
-	}
-	// Create the sensor data
-	if(!sensor->context){
-	    // Pointer to new instance of VL53LX_DEV
-	    // Note: Required if using multiple instances of same sensor type
-	    sensor->context = (void*)malloc(sizeof(vl53lx_data_t));
-	    // Check if memory allocated
-	    if(!sensor->context){
-	    	return TOF_SENSOR_ERR_SENSOR_CREATE;
-	    }
-	}
+    // Set the sensor handle
+    if (!shandle) {
+        shandle = (tof_sensor_handle_t*) handle;
+    }
+    // Create the sensor data
+    if (!sensor->context) {
+        // Pointer to new instance of VL53LX_DEV
+        // Note: Required if using multiple instances of same sensor type
+        sensor->context = (void*) malloc (sizeof(vl53lx_data_t));
+        // Check if memory allocated
+        if (!sensor->context) {
+            return TOF_SENSOR_ERR_SENSOR_CREATE;
+        }
+    }
 
-	sensor->num_configs = NUM_CONFIGS;
-	sensor->status = TOF_SENSOR_STATUS_BOOTING;
-	sensor->state = state_boot;
+    sensor->num_configs = NUM_CONFIGS;
+    sensor->status = TOF_SENSOR_STATUS_BOOTING;
+    sensor->state = state_boot;
 
     /* Configure XSHUT pin as output */
-    nrf_gpio_cfg_output(sensor->pin_xshut);
+    nrf_gpio_cfg_output (sensor->pin_xshut);
     /* Set XSHUT pin low to trigger a "fresh out of reset" condition */
-    nrf_gpio_pin_clear(sensor->pin_xshut);
+    nrf_gpio_pin_clear (sensor->pin_xshut);
     /* Init the configuration types */
-    init_config_types(sensor);
+    init_config_types (sensor);
 
     NRF_LOG_INFO("%s initialized", sensor->name);
 
@@ -199,65 +199,54 @@ static void state_prepare(void) {
         shandle->sensor->state = state_err;
         return;
     }
-    // Load and copy default configurations
-    load_default_configs ();
-    // Handle any reset commands
+    // Load and copy factory default configurations
+    load_default_configs();
+
+    uint16_t status = 0;
+    // Prepare the sensor based on reset command, the default attempts to load user configurations
     switch (shandle->reset_cmd) {
         default:
         case TOF_SENSOR_RESET_SENSOR:
             // Read calibration data from storage if it exists
-            if (fds_mgr_read (
+            status = fds_mgr_read(
                     FILD_ID_SNSR_DATA(shandle->sensor->id),
                     RKEY_SNSR_DATA_CAL,
                     (uint8_t*) &VL53LX_DATA(shandle->sensor)->cal,
-                    sizeof(VL53LX_DATA(shandle->sensor)->cal)))
-            {
-                /**
-                 * No calibration data read - so run a basic calibrations on startup
-                 */
-                // Perform ref spad
-                if (!set_config(shandle->sensor, CONFIG_CAL_REFSPAD, 0)) {
-                    NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(CONFIG_CAL_REFSPAD));
-                }
-                else {
-                    NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_CAL_REFSPAD));
-                    shandle->sensor->state = state_err;
-                    return;
-                }
-                // Perform xtalk
-                if (!set_config(shandle->sensor, CONFIG_CAL_XTALK, 0)) {
-                    NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(CONFIG_CAL_XTALK));
-                }
-                else {
-                    NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_CAL_XTALK));
-                    shandle->sensor->state = state_err;
-                    return;
-                }
+                    sizeof(VL53LX_DATA(shandle->sensor)->cal));
+
+            if(status) {
                 break;
             }
+
+            // Read user configurations from storage if it exists
+            status = fds_mgr_read (
+                    FILD_ID_SNSR_DATA(shandle->sensor->id),
+                    RKEY_SNSR_DATA_USER,
+                    (uint8_t*) &cfg_buff,
+                    SNSR_CFG_STORAGE_SIZE(shandle));
+
+            if(status) {
+                break;
+            }
+
             // Set calibration data
-            if (!VL53LX_SetCalibrationData (VL53LX(shandle->sensor), &VL53LX_DATA(shandle->sensor)->cal)) {
+            status = VL53LX_SetCalibrationData(VL53LX(shandle->sensor), &VL53LX_DATA(shandle->sensor)->cal);
+
+            if(!status) {
                 NRF_LOG_INFO("%s set cal data", shandle->sensor->name);
             }
             else {
                 NRF_LOG_INFO("%s err: set cal data", shandle->sensor->name);
-            }
-            // Read user configurations from storage if it exists
-            if (fds_mgr_read (
-                    FILD_ID_SNSR_DATA(shandle->sensor->id),
-                    RKEY_SNSR_DATA_USER,
-                    (uint8_t*) &cfg_buff,
-                    SNSR_CFG_STORAGE_SIZE(shandle)))
-            {
                 break;
             }
+
             // Set Distance mode first (according to data sheet)
-            if (CONFIG_STAT_ERROR != set_config (shandle->sensor, CONFIG_DISTANCE_MODE, cfg_buff[CONFIG_DISTANCE_MODE])) {
+            if (CONFIG_STAT_ERROR != set_config(shandle->sensor, CONFIG_DISTANCE_MODE, cfg_buff[CONFIG_DISTANCE_MODE])) {
                 load_config (shandle->sensor, CONFIG_DISTANCE_MODE);
-                NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str (CONFIG_DISTANCE_MODE));
+                NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(CONFIG_DISTANCE_MODE));
             }
             else {
-                NRF_LOG_INFO("%s set %s: error",shandle->sensor->name, get_config_str (CONFIG_DISTANCE_MODE));
+                NRF_LOG_INFO("%s set %s: error",shandle->sensor->name, get_config_str(CONFIG_DISTANCE_MODE));
                 shandle->sensor->state = state_err;
                 return;
             }
@@ -272,21 +261,44 @@ static void state_prepare(void) {
                     continue;
                 }
                 // Set the configuration. If no error then cache the value
-                if (CONFIG_STAT_ERROR != set_config (shandle->sensor, i, cfg_buff[i])) {
+                if (CONFIG_STAT_ERROR != set_config(shandle->sensor, i, cfg_buff[i])) {
                     load_config (shandle->sensor, i);
-                    NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str (i));
+                    NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(i));
                 }
                 else {
-                    NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str (i));
+                    NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(i));
                     shandle->sensor->state = state_err;
                     return;
                 }
             }
             break;
+
         case TOF_SENSOR_RESET_SENSOR_FACTORY:
-            fds_mgr_delete (FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_CAL);
-            fds_mgr_delete (FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_USER);
+            fds_mgr_delete(FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_CAL);
+            fds_mgr_delete(FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_USER);
             break;
+    }
+
+    // Run a basic calibration if no calibration/user data stored
+    if(status){
+        // Perform ref spad
+        if (!set_config(shandle->sensor, CONFIG_CAL_REFSPAD, 0)) {
+            NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(CONFIG_CAL_REFSPAD));
+        }
+        else {
+            NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_CAL_REFSPAD));
+            shandle->sensor->state = state_err;
+            return;
+        }
+        // Perform xtalk
+        if (!set_config(shandle->sensor, CONFIG_CAL_XTALK, 0)) {
+            NRF_LOG_INFO("%s set %s", shandle->sensor->name, get_config_str(CONFIG_CAL_XTALK));
+        }
+        else {
+            NRF_LOG_INFO("%s set %s: error", shandle->sensor->name, get_config_str(CONFIG_CAL_XTALK));
+            shandle->sensor->state = state_err;
+            return;
+        }
     }
 
     // Go to state_init

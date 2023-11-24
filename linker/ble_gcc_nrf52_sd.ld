@@ -38,16 +38,16 @@ GROUP(-lgcc -lc -lnosys)
  * The SD flash size can also be referenced in:
  * ${SDK_ROOT}components/softdevice/s132/doc/s112_nrf52_7.2.0_release-notes.pdf under SD Properties
  * 
- * According to the release-notes:
+ * From release-notes:
  * "RAM: 3.7 kB (0x0EB8 bytes). This is the minimum required memory."
  * "The worst-case stack usage for the SD is 1.75 kB (0x0700 bytes)."
  * 
- * According to the release-notes:
+ * From release-notes:
  * "The Firmware ID of this SoftDevice is 0x0103."
  * 
- * Our app flash size if determined by (BOOTLOADER_FLASH_ORIGIN - APP_ORIGIN)
+ * The app flash size is determined by (BOOTLOADER_FLASH_ORIGIN - APP_ORIGIN)
  * so if the bootloader starts at 0x72000
- * then our app size would be (0x72000 - 0x19000) = 0x59000
+ * then the app size would be (0x72000 - 0x19000) = 0x59000
  * 
  * FLASH layout for above example:
  * 0x7F000 - 0x80000  (4   kB) Bootloader settings
