@@ -19,33 +19,65 @@
 
 #include <string.h>
 #include "utils.h"
+#include "nrf_dfu_types.h"
+
+#define BOOTLOADER_SETTINGS_LOC  0x0007F000   /**< Location in flash where the bootloader settings starts..should match the bootloader's linker map */
+
+static void get_verison_str(void);
+
+// Char buffer for the firmware version string
+static char fw_version_str[15];
+static uint8_t is_initialized = 0;
 
 /**
- * Function for reducing raw version data from memory to a string.
- * The format will be in the form major.minor.revision  i.e. "1.0.0"
+ * Get the formated version string
+ * Note: Should call
+ * @return
  */
-void tof_utils_reduce_version_str(const char* str_buff, char* buff) {
-    size_t slen = strlen(str_buff);
+const char* tof_utils_get_version_str_ptr(void) {
+    if(!is_initialized) {
+        is_initialized = 1;
+        get_verison_str();
+    }
+
+    return &fw_version_str[0];
+}
+
+
+static void get_verison_str(void) {
+    nrf_dfu_settings_t dfu_settings;
+    static char buff[15];
+
+    // Get version data from bootloader settings location
+    memcpy(&dfu_settings, (uint32_t*)BOOTLOADER_SETTINGS_LOC, sizeof(nrf_dfu_settings_t));
+    uint32_t app_version = dfu_settings.app_version;
+
+    sprintf(buff, "%ld", app_version);
+
+    size_t slen = strlen(buff);
     uint8_t counter = slen % 2;
     uint8_t idx = 0;
 
+
+    // Reduce the raw version data from memory to a formated
+    // version string in the form major.minor.revision  i.e. "1.0.0"
     for(int i = 0; i <= slen; ++i){
         // Null terminate string buff when last char reached
         if(i >= slen){
-            buff[idx] = '\0';
+            fw_version_str[idx] = '\0';
             break;
         }
         // Ignore leading zeros when single digit value
-        if(!counter && str_buff[i] == '0'){
+        if(!counter && buff[i] == '0'){
             counter++;
             continue;
         }
         // Copy valid data to buffer
-        buff[idx++] = str_buff[i];
+        fw_version_str[idx++] = buff[i];
         // Place the decimal after each version number
         if(counter++ % 2 && idx < slen){
             counter = 0;
-            buff[idx++] = '.';
+            fw_version_str[idx++] = '.';
         }
     }
 }

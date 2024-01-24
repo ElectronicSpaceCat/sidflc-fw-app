@@ -84,7 +84,6 @@ void tof_dev_mgr_init (void) {
     }
     // Initialize device data
     shandle.id_selected = TOF_DEV_MGR_SNSR_SHORT_RANGE;
-    shandle.reset_cmd = TOF_RESET_NA;
     shandle.ranging_enabled = false;
     shandle.debug_enabled = false;
     shandle.sensor = &sensors[shandle.id_selected];
@@ -100,8 +99,9 @@ void tof_dev_mgr_uninit (void) {
 
 void tof_dev_mgr_process (void) {
     // Make sure manager is initialized
-    if (!initialized || !should_run)
+    if (!initialized || !should_run) {
         return;
+    }
     // Make sure selected sensor id is valid
     if (shandle.id_selected >= NUM_TOF_DEV_MGR_SNSR) {
         shandle.id_selected = TOF_DEV_MGR_SNSR_SHORT_RANGE;
@@ -123,9 +123,7 @@ void tof_dev_mgr_process (void) {
         }
     }
     // Run current state
-    if (shandle.sensor) {
-        shandle.sensor->state ();
-    }
+    shandle.sensor->state ();
     // Process configuration commands
     tof_dev_mgr_process_cfg_cmd ();
 
@@ -253,15 +251,17 @@ static void tof_dev_mgr_process_cfg_cmd (void) {
         case DEV_CFG_TRGT_SNSR:
             return;
         case DEV_CFG_TRGT_USER:
-            if (!cfg_cmd.pending)
+            if (!cfg_cmd.pending) {
                 return;
+            }
             cfg_cmd_process_msg ("user_data", &cfg_cmd.d.cfg, &tof_dev_set_user_cfg);
             tof_dev_cfg_cmd_callback (&cfg_cmd.d);
             cfg_cmd.pending = false;
             return;
         default:
-            if (!cfg_cmd.pending)
+            if (!cfg_cmd.pending) {
                 return;
+            }
             cfg_cmd.d.cfg.status = CONFIG_STAT_NA;
             cfg_cmd_process_msg ("invalid target", &cfg_cmd.d.cfg, NULL);
             tof_dev_cfg_cmd_callback (&cfg_cmd.d);

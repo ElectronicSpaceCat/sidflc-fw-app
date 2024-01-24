@@ -22,7 +22,6 @@
 
 #include <stdint.h>
 
-void tof_utils_reduce_version_str(const char* str_buff, char* buff);
-
+const char* tof_utils_get_version_str_ptr(void);
 
 #endif /* TOF_UTILS_H */

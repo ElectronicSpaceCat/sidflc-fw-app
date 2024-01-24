@@ -28,6 +28,7 @@
 #include "string.h"
 #include "stdbool.h"
 #include "peer_manager.h"
+#include "utils.h"
 
 #define CHAR_BUFF_SIZE 20
 
@@ -107,6 +108,7 @@ void debug_cli_process(void) {
         SEGGER_RTT_WriteString(0, "cfg:trgt:cmd:id:value send config cmd, -cmds for cmd list, -trgts for trgt list\n");
         SEGGER_RTT_WriteString(0, "cfg:trgt:all          get all trgt configs\n");
         SEGGER_RTT_WriteString(0, "rst:s|sf|d            reset: s - sensor, sf - sensor factory, d -device\n");
+        SEGGER_RTT_WriteString(0, "version               get app version\n");
         SEGGER_RTT_WriteString(0, "shutdown:en           shutdown - power off device, shutdown:en - toggle shutdown enabled\n\n");
         return;
     }
@@ -261,6 +263,10 @@ void debug_cli_process(void) {
         else{
             // Do nothing..
         }
+    }
+    else if (!strcmp(_buff, "version")) {
+        SEGGER_RTT_printf(0, "app: %s\n", tof_utils_get_version_str_ptr());
+        return;
     }
     else if (!strcmp(_buff, "shutdown")) {
         token = strtok(NULL, ":");

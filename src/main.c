@@ -181,9 +181,6 @@ static void advertising_start(bool erase_bonds); /**< Forward declaration of adv
 static void whitelist_set(pm_peer_id_list_skip_t skip);
 static void identities_set(pm_peer_id_list_skip_t skip);
 
-// Char buffer for the firmware version string
-static char fw_version_str[15];
-
 // Declare an app_timer id variable and define our timer interval and define a timer interval
 APP_TIMER_DEF(m_tof_timer_id);
 APP_TIMER_DEF(m_led_timer_id);
@@ -193,7 +190,7 @@ APP_TIMER_DEF(m_battery_timer_id);
 #define LED_ADV_TOGGLE_TIMER_INTERVAL           APP_TIMER_TICKS(125)    // intervals in ms
 #define LED_CON_TOGGLE_TIMER_INTERVAL           APP_TIMER_TICKS(500)    // intervals in ms
 #define BATTERY_LEVEL_MEAS_INTERVAL             APP_TIMER_TICKS(120000) // Battery level measurement interval (ticks).
-// This value corresponds to 120 seconds (2 minutes).
+                                                                        // This value corresponds to 120 seconds (2 minutes).
 
 // NOTE: AG - Make sure to update the number of vendor specific UUIDs in our project
 //            by setting the NRF_SDH_BLE_VS_UUID_COUNT value in sdk_config.h
@@ -380,7 +377,7 @@ static void on_pwr_evt(ble_pwr_t *p_pwr, ble_evt_t const *p_ble_evt) {
     case BLE_GAP_EVT_CONNECTED:
         // When connected; start battery monitor timer
         app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
-        tof_pwr_batt_sample_voltage_delayed(250);
+        tof_pwr_batt_sample_voltage();
       break;
     case BLE_GAP_EVT_DISCONNECTED:
         // When disconnected; stop the battery timer
@@ -439,22 +436,11 @@ static void dis_init(void) {
 	ble_dis_reg_cert_data_list_t cert_list;
 	uint8_t cert_list_data[] = BLE_DIS_CERT_LIST;
 
-    nrf_dfu_settings_t dfu_settings;
-    memcpy(&dfu_settings, (uint32_t*)BOOTLOADER_SETTINGS_LOC, sizeof(nrf_dfu_settings_t));
-    uint32_t app_version = dfu_settings.app_version;
-
-    char buff[15];
-    sprintf(buff, "%ld", app_version);
-
-    tof_utils_reduce_version_str((const char*)buff, fw_version_str);
-
-	memset(&dis_init, 0, sizeof(dis_init));
-
 	ble_srv_ascii_to_utf8(&dis_init_obj.manufact_name_str, BLE_DIS_MANUFACTURER_NAME);
 	ble_srv_ascii_to_utf8(&dis_init_obj.model_num_str, BLE_DIS_MODEL_NUMBER);
 	ble_srv_ascii_to_utf8(&dis_init_obj.serial_num_str, BLE_DIS_SERIAL_NUMBER);
 	ble_srv_ascii_to_utf8(&dis_init_obj.hw_rev_str, BLE_DIS_HW_REVISION);
-	ble_srv_ascii_to_utf8(&dis_init_obj.fw_rev_str, fw_version_str);
+	ble_srv_ascii_to_utf8(&dis_init_obj.fw_rev_str, (char*)tof_utils_get_version_str_ptr());
 	ble_srv_ascii_to_utf8(&dis_init_obj.sw_rev_str, BLE_DIS_SW_REVISION);
 
 	sys_id.manufacturer_id = BLE_DIS_MANUFACTURER_ID;

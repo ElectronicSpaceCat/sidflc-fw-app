@@ -58,10 +58,13 @@ typedef enum {
   NUM_TOF_BATT_STATUS
 }pwr_batt_status_t;
 
+#define ADC_INPUT_CHANNEL                       NRF_SAADC_INPUT_AIN4
+#define BATT_ENABLE_SETTLE_TIME_MS              50
+
 #define PWR_BTN_DEBOUNCE_DELAY_TIMER_INTERVAL   APP_TIMER_TICKS(10) // The built in debounce time in the STM6601CQ2BDM6F supervisor chip is ~30ms at 3.7V supply voltage
 
-#define ADC_BATT_MVOLTS_OK_THRESHOLD           3295 // Voltage at or above this will be considered OK
-#define ADC_BATT_MVOLTS_LOW_THRESHOLD          3275 // The STM6601CQ2BDM6F will shut down at 3.1V so set the threshold for Low Voltage to something higher
+#define ADC_BATT_MVOLTS_OK_THRESHOLD            3295 // Voltage at or above this will be considered OK
+#define ADC_BATT_MVOLTS_LOW_THRESHOLD           3275 // The STM6601CQ2BDM6F will shut down at 3.1V so set the threshold for Low Voltage to something higher
 
 /**
  * The BT PCB has a battery voltage monitoring circuit
@@ -110,7 +113,9 @@ static void adc_configure(void);
 static void delay_timer_handler(void *p_context) {
   uint8_t* _delay = (uint8_t*)p_context;
   *_delay = false;
-  tof_pwr_batt_sample_voltage();
+  // Run the saadc sample
+  ret_code_t err_code = nrf_drv_saadc_sample();
+  APP_ERROR_CHECK(err_code);
 }
 
 void tof_pwr_init(void){
@@ -126,6 +131,7 @@ void tof_pwr_init(void){
   nrf_gpio_cfg_output(PIN_PS_HOLD);
   // Battery monitor enable
   nrf_gpio_cfg_output(PIN_BM_EN);
+
   // Set regulator enable high
   nrf_gpio_pin_set(PIN_PS_HOLD);
   // Turn battery monitor off
@@ -178,23 +184,16 @@ void tof_pwr_uninit(void){
 }
 
 void tof_pwr_batt_sample_voltage(void){
+    static uint8_t m_delay_active = false;
     // Turn battery monitor on
     nrf_gpio_pin_set(PIN_BM_EN);
-    // Run the saadc sample
-    ret_code_t err_code = nrf_drv_saadc_sample();
-    APP_ERROR_CHECK(err_code);
-}
-
-void tof_pwr_batt_sample_voltage_delayed(uint32_t delay_time_ms){
-    static uint8_t m_delay_active = false;
     // If time > zero and timer not already started, then start it
     if(!m_delay_active){
       m_delay_active = true;
       // Set up single shot delay timer to allow settle time before triggering a saadc sample
-      ret_code_t err_code = app_timer_create(&m_delay_timer_id, APP_TIMER_MODE_SINGLE_SHOT, delay_timer_handler);
-      APP_ERROR_CHECK(err_code);
-      err_code = app_timer_start(m_delay_timer_id, APP_TIMER_TICKS(delay_time_ms), &m_delay_active);
-      APP_ERROR_CHECK(err_code);
+      if(NRF_SUCCESS == app_timer_create(&m_delay_timer_id, APP_TIMER_MODE_SINGLE_SHOT, delay_timer_handler)) {
+          app_timer_start(m_delay_timer_id, APP_TIMER_TICKS(BATT_ENABLE_SETTLE_TIME_MS), &m_delay_active);
+      }
     }
 }
 
@@ -300,13 +299,13 @@ static void adc_configure(void)
     }                                                                     //  the SAADC will sample "Oversample" number of times as fast as it can and then output a single averaged value to the RAM buffer.
                                                                           //  If burst mode is not enabled, the SAMPLE task needs to be triggered "Oversample" number of times to output a single averaged value to the RAM buffer.
 
-    channel_config.pin_p = NRF_SAADC_INPUT_AIN1;                          //Select the input pin for the channel. AIN1 pin maps to physical pin P0.03.
+    channel_config.pin_p = ADC_INPUT_CHANNEL;                             //Select the input pin for the channel. AIN1 pin maps to physical pin P0.03.
     channel_config.pin_n = NRF_SAADC_INPUT_DISABLED;                      //Since the SAADC is single ended, the negative pin is disabled. The negative pin is shorted to ground internally.
     channel_config.resistor_p = NRF_SAADC_RESISTOR_DISABLED;              //Disable pull-up resistor on the input pin
     channel_config.resistor_n = NRF_SAADC_RESISTOR_DISABLED;
 
     err_code = nrf_drv_saadc_channel_init(0, &channel_config);            // 0-7 (8 channels available or find max from NRF_SAADC_CHANNEL_COUNT)
-    APP_ERROR_CHECK(err_code);
+    APP_ERROR_CHECK(err_code);                                            //   If over-sampling is enabled then only one channel can be used
 
     err_code = nrf_drv_saadc_buffer_convert(&adc_buf[0], SAADC_SAMPLES_IN_BUFFER);
     APP_ERROR_CHECK(err_code);
@@ -425,7 +424,7 @@ static void test_pin_pwr_on_status(void){
     NRF_LOG_INFO("SYS ISR: pwr input USB");
   }
   tof_pwr_data_callback(&m_pwr_mngt_data, TOF_PWR_DATA_INPUT_SOURCE);
-  tof_pwr_batt_sample_voltage_delayed(1500);
+  tof_pwr_batt_sample_voltage();
 }
 
 static void test_pin_charge_status(void){
@@ -437,7 +436,7 @@ static void test_pin_charge_status(void){
     m_pwr_mngt_data.charge_state = TOF_PWR_CHARG_OFF;
     NRF_LOG_INFO("SYS ISR: batt charger disabled");
   }
-  tof_pwr_batt_sample_voltage_delayed(1500);
+  tof_pwr_batt_sample_voltage();
 }
 
 static void test_pin_low_voltage_shutdown(void){
@@ -453,7 +452,7 @@ static void test_pin_low_voltage_shutdown(void){
 		NRF_LOG_INFO("SYS ISR: lsvd started");
 	  }
   }
-  tof_pwr_batt_sample_voltage_delayed(100);
+  tof_pwr_batt_sample_voltage();
 }
 
 static const char* get_batt_status_str(uint8_t status){

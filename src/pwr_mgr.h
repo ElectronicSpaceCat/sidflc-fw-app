@@ -42,7 +42,6 @@ typedef enum{
 void tof_pwr_init(void);
 void tof_pwr_uninit(void);
 void tof_pwr_batt_sample_voltage(void);
-void tof_pwr_batt_sample_voltage_delayed(uint32_t delay_time_ms);
 void tof_pwr_batt_print_enable(void);
 const pwr_mngt_data_t* tof_pwr_get_mngt_data(void);
 void tof_pwr_reset(void);

@@ -325,19 +325,15 @@ static void state_init(void) {
 }
 
 static void state_idle(void) {
-    // If this sensor is not the selected then standby
     if (shandle->sensor->id != shandle->id_selected) {
         shandle->sensor->state = state_standby;
     }
-    // Process configuration commands
     else if (shandle->config_pending) {
         shandle->sensor->state = state_config;
     }
-    // Reset the sensor if the reset command was sent
     else if (shandle->reset_cmd < NUM_TOF_RESET_OPTIONS) {
         shandle->sensor->state = state_boot;
     }
-    // Run the sensor ranging if enabled
     else if (shandle->ranging_enabled) {
         shandle->sensor->state = state_start;
     }
@@ -357,7 +353,6 @@ static void state_start(void) {
 }
 
 static void state_stop(void) {
-    // Make sure a to stop any err timers
     (void) app_timer_stop(err_timeout_timer_id);
 
     if (!VL53LX_StopMeasurement(VL53LX(shandle->sensor))) {
@@ -374,19 +369,15 @@ static void state_stop(void) {
 }
 
 void state_clear_int_and_start(void) {
-    // If this sensor is not the selected then standby
     if (shandle->sensor->id != shandle->id_selected) {
         shandle->sensor->state = state_stop;
     }
-    // Process configuration commands
     else if (shandle->config_pending) {
         shandle->sensor->state = state_config;
     }
-    // Reset the sensor if the command was sent
     else if (shandle->reset_cmd < NUM_TOF_RESET_OPTIONS) {
         shandle->sensor->state = state_boot;
     }
-    // Stop the sensor ranging if disabled
     else if (!shandle->ranging_enabled) {
         shandle->sensor->state = state_stop;
     }
@@ -400,7 +391,6 @@ void state_clear_int_and_start(void) {
 }
 
 static void state_standby(void) {
-    // Wait here until the manager switches to another sensor
     if (shandle->sensor->id != shandle->id_selected) {
         shandle->sensor->status = TOF_SENSOR_STATUS_STANDBY;
     }
