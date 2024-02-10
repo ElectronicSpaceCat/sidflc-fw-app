@@ -23,48 +23,65 @@
 
 #define BOOTLOADER_SETTINGS_LOC  0x0007F000   /**< Location in flash where the bootloader settings starts..should match the bootloader's linker map */
 
-static void get_verison_str(void);
+typedef enum {
+    BOOTLOADER,
+    BOOTLOADER_SETTINGS,
+    APPLICATION
+}version_type_t;
 
-// Char buffer for the firmware version string
-static char fw_version_str[15];
+static char app_version_str[15];
+static char bl_version_str[15];
+static char bls_version_str[15];
+
 static uint8_t is_initialized = 0;
+
+static version_str_t version_strings;
+
+static void get_verisons(void);
+static void reduce_verison_str(uint32_t version, char* str_buff);
 
 /**
  * Get the formated version string
  * Note: Should call
  * @return
  */
-const char* tof_utils_get_version_str_ptr(void) {
+const version_str_t* tof_utils_get_versions(void) {
     if(!is_initialized) {
         is_initialized = 1;
-        get_verison_str();
+        get_verisons();
     }
 
-    return &fw_version_str[0];
+    return &version_strings;
 }
 
-
-static void get_verison_str(void) {
+static void get_verisons(void) {
     nrf_dfu_settings_t dfu_settings;
-    static char buff[15];
-
     // Get version data from bootloader settings location
     memcpy(&dfu_settings, (uint32_t*)BOOTLOADER_SETTINGS_LOC, sizeof(nrf_dfu_settings_t));
-    uint32_t app_version = dfu_settings.app_version;
 
-    sprintf(buff, "%ld", app_version);
+    reduce_verison_str(dfu_settings.app_version, app_version_str);
+    reduce_verison_str(dfu_settings.bootloader_version, bl_version_str);
+    reduce_verison_str(dfu_settings.settings_version, bls_version_str);
+
+    version_strings.app_ptr = app_version_str;
+    version_strings.bootloader_ptr = bl_version_str;
+    version_strings.settings_ptr = bls_version_str;
+}
+
+static void reduce_verison_str(uint32_t version, char* str_buff) {
+    static char buff[15];
+    sprintf(buff, "%ld", version);
 
     size_t slen = strlen(buff);
     uint8_t counter = slen % 2;
     uint8_t idx = 0;
-
 
     // Reduce the raw version data from memory to a formated
     // version string in the form major.minor.revision  i.e. "1.0.0"
     for(int i = 0; i <= slen; ++i){
         // Null terminate string buff when last char reached
         if(i >= slen){
-            fw_version_str[idx] = '\0';
+            str_buff[idx] = '\0';
             break;
         }
         // Ignore leading zeros when single digit value
@@ -73,11 +90,11 @@ static void get_verison_str(void) {
             continue;
         }
         // Copy valid data to buffer
-        fw_version_str[idx++] = buff[i];
+        str_buff[idx++] = buff[i];
         // Place the decimal after each version number
         if(counter++ % 2 && idx < slen){
             counter = 0;
-            fw_version_str[idx++] = '.';
+            str_buff[idx++] = '.';
         }
     }
 }

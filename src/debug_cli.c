@@ -265,7 +265,10 @@ void debug_cli_process(void) {
         }
     }
     else if (!strcmp(_buff, "version")) {
-        SEGGER_RTT_printf(0, "app: %s\n", tof_utils_get_version_str_ptr());
+        const version_str_t* versions = tof_utils_get_versions();
+        SEGGER_RTT_printf(0, "application: %s\n", versions->app_ptr);
+        SEGGER_RTT_printf(0, "bootloader: %s\n", versions->bootloader_ptr);
+        SEGGER_RTT_printf(0, "settlings: %s\n", versions->settings_ptr);
         return;
     }
     else if (!strcmp(_buff, "shutdown")) {

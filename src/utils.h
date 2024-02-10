@@ -22,6 +22,12 @@
 
 #include <stdint.h>
 
-const char* tof_utils_get_version_str_ptr(void);
+typedef struct {
+    char* settings_ptr;   /**< Version of the current DFU settings struct layout. */
+    char* app_ptr;        /**< Version of the last stored application. */
+    char* bootloader_ptr; /**< Version of the last stored bootloader. */
+} version_str_t;
+
+const version_str_t* tof_utils_get_versions(void);
 
 #endif /* TOF_UTILS_H */
