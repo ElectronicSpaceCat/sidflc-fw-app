@@ -30,82 +30,95 @@
 #define TWIM_INSTANCE_ID   0
 
 static const nrfx_twim_t m_twi = NRFX_TWIM_INSTANCE(TWIM_INSTANCE_ID);
-static volatile uint8_t m_twi_xfer_active = false;
 static volatile nrfx_twim_evt_type_t m_twi_xfer_evt = NRFX_TWIM_EVT_DONE;
+static volatile uint8_t m_is_twi_xfer_active = false;
 
 static ret_code_t map_evt_to_nrf_err(nrfx_twim_evt_type_t evt);
+static ret_code_t wait_twi_evt(void);
+static void twi_bus_reset(void);
 
 __STATIC_INLINE void print_err_msg(nrfx_twim_xfer_type_t xfrType, nrfx_twim_evt_type_t evt) {
     NRF_LOG_INFO("ToF TWI xfer type: %d, event: %d", xfrType, evt);
-    m_twi_xfer_evt = evt;
 }
 
 /**
- * @brief TWI events handler.
+ * TWI events handler
+ * @param p_event
+ * @param p_context
  */
 static void twi_handler(nrfx_twim_evt_t const *p_event, void *p_context) {
+    // Handle event type
     switch (p_event->type) {
-        case NRFX_TWIM_EVT_DONE:
-            if (p_event->xfer_desc.type == NRFX_TWIM_XFER_RX) {
-                // ...
-            }
-            break;
-        case NRFX_TWIM_EVT_DATA_NACK:
-            break;
         case NRFX_TWIM_EVT_ADDRESS_NACK:
+        case NRFX_TWIM_EVT_BUS_ERROR:
         case NRFX_TWIM_EVT_OVERRUN:
         	print_err_msg(p_event->xfer_desc.type, p_event->type);
-        	break;
-        case NRFX_TWIM_EVT_BUS_ERROR:
-        	print_err_msg(p_event->xfer_desc.type, p_event->type);
-        	NRF_LOG_INFO("ToF TWI resetting");
-        	tof_twi_uninit();
-        	nrfx_twim_bus_recover(PIN_SCL, PIN_SDA);
-        	tof_twi_init();
             break;
+        case NRFX_TWIM_EVT_DATA_NACK:
+        case NRFX_TWIM_EVT_DONE:
         default:
             break;
     }
+    // Save the event type
+    m_twi_xfer_evt = p_event->type;
     // Set false regardless of event type to ensure this is non-blocking
-    m_twi_xfer_active = false;
+    m_is_twi_xfer_active = false;
 }
 
-/// NOTE: AG - I2CWrite implementation for range sensors
+/**
+ * I2CWrite implementation for range sensors
+ * @param dev
+ * @param buff
+ * @param len
+ * @return
+ */
 int I2CWrite(uint8_t dev, uint8_t *buff, uint8_t len) {
-    m_twi_xfer_active = true;
-
+    m_is_twi_xfer_active = true;
     ret_code_t err_code = nrfx_twim_tx(&m_twi, dev, buff, len, false);
     APP_ERROR_CHECK(err_code);
-
-    wfe(&m_twi_xfer_active);
-
-    if (NRFX_TWIM_EVT_DONE != m_twi_xfer_evt) {
-        err_code = map_evt_to_nrf_err(m_twi_xfer_evt);
-        m_twi_xfer_evt = NRFX_TWIM_EVT_DONE;
-    }
-
-    return err_code;
+    return wait_twi_evt();
 }
 
-/// NOTE: AG - I2CRead implementation for range sensors
+/**
+ * I2CRead implementation for range sensors
+ * @param dev
+ * @param buff
+ * @param len
+ * @return
+ */
 int I2CRead(uint8_t dev, uint8_t *buff, uint8_t len) {
-    m_twi_xfer_active = true;
-
+    m_is_twi_xfer_active = true;
     ret_code_t err_code = nrfx_twim_rx(&m_twi, dev, buff, len);
     APP_ERROR_CHECK(err_code);
+    return wait_twi_evt();
+}
 
-    wfe(&m_twi_xfer_active);
-
+/**
+ * Waits for twi transaction to complete
+ * and reset bus on critical error.
+ * @return ret_code_t
+ */
+static ret_code_t wait_twi_evt(void) {
+    ret_code_t err_code = NRFX_SUCCESS;
+    wfe(&m_is_twi_xfer_active);
     if (NRFX_TWIM_EVT_DONE != m_twi_xfer_evt) {
         err_code = map_evt_to_nrf_err(m_twi_xfer_evt);
-        m_twi_xfer_evt = NRFX_TWIM_EVT_DONE;
+        switch(err_code) {
+            case NRFX_TWIM_EVT_ADDRESS_NACK:
+            case NRFX_TWIM_EVT_BUS_ERROR:
+            case NRFX_TWIM_EVT_OVERRUN:
+                twi_bus_reset();
+                break;
+            default:
+                break;
+        }
     }
 
     return err_code;
 }
 
 /**
- * @brief TWI initialization.
+ * @brief TWI initialization
  */
 ret_code_t tof_twi_init(void) {
     ret_code_t err_code;
@@ -132,11 +145,30 @@ ret_code_t tof_twi_init(void) {
     return err_code;
 }
 
+/**
+ * Unintialize the twi interface
+ * @return
+ */
 ret_code_t tof_twi_uninit(void){
     nrfx_twim_uninit(&m_twi);
     return NRF_SUCCESS;
 }
 
+/**
+ * Reset the bus
+ */
+static void twi_bus_reset(void) {
+    NRF_LOG_INFO("ToF TWI resetting");
+    tof_twi_uninit();
+    nrfx_twim_bus_recover(PIN_SCL, PIN_SDA);
+    tof_twi_init();
+}
+
+/**
+ * Maps the TWI event to an NRF error type
+ * @param evt
+ * @return
+ */
 static ret_code_t map_evt_to_nrf_err(nrfx_twim_evt_type_t evt){
     switch (evt) {
         case NRFX_TWIM_EVT_DONE:

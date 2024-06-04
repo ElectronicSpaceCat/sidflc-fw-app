@@ -28,7 +28,7 @@
 /** FDS defines for user configurations*/
 #define RKEY_USER_STORAGE           (0x1001)
 #define FILE_ID_USER_STORAGE        (0x0101)
-#define MAX_USER_CONFIG_BUFF_SIZE   (10)
+#define MAX_USER_CONFIG_BUFF_SIZE   (24)
 
 typedef enum {
     TOF_DEV_MGR_SNSR_SHORT_RANGE = 0,

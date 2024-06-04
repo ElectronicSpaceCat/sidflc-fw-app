@@ -61,6 +61,7 @@ typedef enum {
  * sent to the user */
 typedef enum {
     TOF_SENSOR_STATUS_BOOTING = 0,
+    TOF_SENSOR_STATUS_CONFIG,
     TOF_SENSOR_STATUS_READY,
     TOF_SENSOR_STATUS_STANDBY,
     TOF_SENSOR_STATUS_ERROR,

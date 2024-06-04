@@ -67,7 +67,6 @@ typedef void (*ble_tof_write_config_handler_t) (uint16_t conn_handle, uint8_t tr
 typedef struct
 {
     ble_tof_evt_handler_t            evt_handler;
-    bool                             support_notification;
     ble_tof_write_handler_t          tof_select_write_handler;
     ble_tof_write_config_handler_t   tof_config_write_handler;
     ble_tof_write_handler_t          tof_ranging_enable_write_handler;
@@ -82,7 +81,6 @@ struct ble_tof_s
     ble_tof_evt_handler_t          evt_handler;
     uint16_t                       conn_handle;    /**< Handle of the current connection (as provided by the BLE stack, is BLE_CONN_HANDLE_INVALID if not in a connection).*/
     uint16_t                       service_handle; /**< Handle of Our Service (as provided by the BLE stack). */
-    bool                           is_notification_supported;
     // ToF range handles
 	ble_gatts_char_handles_t       tof_range_char_handles;
     // ToF sensor select handles

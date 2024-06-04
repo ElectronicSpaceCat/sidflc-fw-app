@@ -35,6 +35,9 @@
 // Command buffer
 static char _buff[CHAR_BUFF_SIZE];
 
+/**
+ * On terminal initialization, display the software license notification.
+ */
 void debug_cli_init(void) {
     SEGGER_RTT_ConfigUpBuffer(0, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
 
@@ -45,6 +48,9 @@ void debug_cli_init(void) {
     SEGGER_RTT_WriteString(0, "in accordance to the GPL-3.0 license.\n\n");
 }
 
+/**
+ * Process commands entered over RTT terminal
+ */
 void debug_cli_process(void) {
     static uint8_t idx = 0;
     static int cmd_ready = 0;
@@ -68,14 +74,12 @@ void debug_cli_process(void) {
             SEGGER_RTT_GetKey();
             continue;
         }
-
         // Exit if buffer exceeded
         if (idx >= (CHAR_BUFF_SIZE - 1)) {
             SEGGER_RTT_WriteString(0, "exceeded max chars\n");
             cmd_ready = 1; // Set ready and return which will reset the command
             return;
         }
-
         // Read characters
         r = SEGGER_RTT_GetKey();
         // Newline or carriage return seen?
@@ -101,18 +105,18 @@ void debug_cli_process(void) {
     // Get first token and process it
     if (!strcmp(token, "help")) {
         SEGGER_RTT_WriteString(0, "\nCommands:\n");
-        SEGGER_RTT_WriteString(0, "batt:print            batt - toggle batt sampling, batt:print - toggle debug\n");
-        SEGGER_RTT_WriteString(0, "rng:print             rng - toggle ranging, rng:print - toggle debug\n");
-        SEGGER_RTT_WriteString(0, "ble:tof|pwr:print     debug ble:tof|pwr service\n");
+        SEGGER_RTT_WriteString(0, "rng:debug             rng - toggle ranging, rng:debug - toggle debug\n");
+        SEGGER_RTT_WriteString(0, "batt:debug            batt - get voltage (mV), batt:debug - toggle debug\n");
+        SEGGER_RTT_WriteString(0, "ble:tof|pwr:debug     debug ble:tof|pwr service\n");
         SEGGER_RTT_WriteString(0, "snsr:id               snsr - get snsr id, snsr:id select snsr\n");
-        SEGGER_RTT_WriteString(0, "cfg:trgt:cmd:id:value send config cmd, -cmds for cmd list, -trgts for trgt list\n");
-        SEGGER_RTT_WriteString(0, "cfg:trgt:all          get all trgt configs\n");
-        SEGGER_RTT_WriteString(0, "rst:s|sf|d            reset: s - sensor, sf - sensor factory, d -device\n");
-        SEGGER_RTT_WriteString(0, "version               get app version\n");
-        SEGGER_RTT_WriteString(0, "shutdown:en           shutdown - power off device, shutdown:en - toggle shutdown enabled\n\n");
+        SEGGER_RTT_WriteString(0, "cfg:trgt:cmd:id:value send config cmd, 'cmd' for cmd list, 'trgt' for list\n");
+        SEGGER_RTT_WriteString(0, "cfg:trgt:all          get all trgt configs, 'trgt' for list\n");
+        SEGGER_RTT_WriteString(0, "rst:s|sf|d            reset: s - sensor, sf - sensor factory, d - device\n");
+        SEGGER_RTT_WriteString(0, "sd:en                 sd - power off device, sd:en - toggle shutdown enabled\n\n");
+        SEGGER_RTT_WriteString(0, "v                     get version info\n");
         return;
     }
-    else if (!strcmp(token, "-cmds")) {
+    else if (!strcmp(token, "cmd")) {
         SEGGER_RTT_WriteString(0, "config Commands:\n");
         SEGGER_RTT_WriteString(0, "0  get\n");
         SEGGER_RTT_WriteString(0, "1  set\n");
@@ -120,7 +124,7 @@ void debug_cli_process(void) {
         SEGGER_RTT_WriteString(0, "3  store\n");
         return;
     }
-    else if (!strcmp(token, "-trgts")) {
+    else if (!strcmp(token, "trgt")) {
         SEGGER_RTT_WriteString(0, "config targets:\n");
         SEGGER_RTT_WriteString(0, "0  active sensor\n");
         SEGGER_RTT_WriteString(0, "1  user\n");
@@ -129,10 +133,10 @@ void debug_cli_process(void) {
     else if (!strcmp(token, "batt")) {
         token = strtok(NULL, ":");
         if (NULL == token) {
-            tof_pwr_batt_sample_voltage();
+            pwr_mgr_batt_sample_voltage();
         }
-        else if (!strcmp(token, "print")) {
-            tof_pwr_batt_print_enable();
+        else if (!strcmp(token, "debug")) {
+            pwr_mgr_batt_debug_enable();
         }
         else{
             // Do nothing..
@@ -145,9 +149,10 @@ void debug_cli_process(void) {
             const tof_sensor_handle_t *shandle = tof_dev_mgr_shandle_get();
             tof_dev_mgr_set_ranging_enable(shandle->ranging_enabled? 0 : 1);
         }
-        else if (!strcmp(token, "print")) {
+        else if (!strcmp(token, "debug")) {
             const tof_sensor_handle_t *shandle = tof_dev_mgr_shandle_get();
             tof_dev_mgr_set_debug_enable(shandle->debug_enabled? 0 : 1);
+            debug_cli_tof_enable_callback();
         }
         else{
             // Do nothing..
@@ -158,13 +163,13 @@ void debug_cli_process(void) {
         token = strtok(NULL, ":");
         if (!strcmp(token, "tof")) {
             token = strtok(NULL, ":");
-            if (!strcmp(token, "print")) {
+            if (!strcmp(token, "debug")) {
                 tof_gatts_hvx_debug_enable();
             }
         }
         else if (!strcmp(token, "pwr")) {
             token = strtok(NULL, ":");
-            if (!strcmp(token, "print")) {
+            if (!strcmp(token, "debug")) {
                 pwr_gatts_hvx_debug_enable();
             }
         }
@@ -257,29 +262,29 @@ void debug_cli_process(void) {
             return;
         }
         else if (!strcmp(token, "d")) {
-            tof_pwr_reset();
+            pwr_mgr_reset();
             return;
         }
         else{
             // Do nothing..
         }
     }
-    else if (!strcmp(_buff, "version")) {
+    else if (!strcmp(_buff, "sd")) {
+        token = strtok(NULL, ":");
+        if (NULL == token) {
+            pwr_mgr_shutdown();
+            return;
+        }
+        else if (!strcmp(token, "en")) {
+            pwr_mgr_shutdown_enable();
+        }
+        return;
+    }
+    else if (!strcmp(_buff, "v")) {
         const version_str_t* versions = tof_utils_get_versions();
         SEGGER_RTT_printf(0, "application: %s\n", versions->app_ptr);
         SEGGER_RTT_printf(0, "bootloader: %s\n", versions->bootloader_ptr);
         SEGGER_RTT_printf(0, "settlings: %s\n", versions->settings_ptr);
-        return;
-    }
-    else if (!strcmp(_buff, "shutdown")) {
-        token = strtok(NULL, ":");
-        if (NULL == token) {
-        	tof_pwr_shutdown();
-        	return;
-        }
-        else if (!strcmp(token, "en")) {
-            tof_pwr_shutdown_enable();
-        }
         return;
     }
     else{

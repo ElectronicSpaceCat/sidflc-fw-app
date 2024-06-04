@@ -32,21 +32,22 @@
 
 APP_TIMER_DEF(m_polling_delay_timer_id);
 
-static void polling_delay_timer_handler(void *p_context) {
-    uint8_t *_delay = (uint8_t*) p_context;
-    *_delay = false;
+static uint8_t m_is_delay_active = false;
+
+static void polling_delay_timer_evt_handler(void *p_context) {
+    uint8_t *_flag = (uint8_t*) p_context;
+    *_flag = false;
 }
 
 static uint32_t createTimer(uint32_t ticks){
-    static uint8_t m_delay_active = true;
-    m_delay_active = true;
+    m_is_delay_active = true;
 
-    uint32_t err_code = app_timer_create(&m_polling_delay_timer_id, APP_TIMER_MODE_SINGLE_SHOT, polling_delay_timer_handler);
+    uint32_t err_code = app_timer_create(&m_polling_delay_timer_id, APP_TIMER_MODE_SINGLE_SHOT, polling_delay_timer_evt_handler);
     APP_ERROR_CHECK(err_code);
-    err_code = app_timer_start(m_polling_delay_timer_id, ticks, &m_delay_active);
+    err_code = app_timer_start(m_polling_delay_timer_id, ticks, &m_is_delay_active);
     APP_ERROR_CHECK(err_code);
 
-    wfe(&m_delay_active);
+    wfe(&m_is_delay_active);
 
     return err_code;
 }

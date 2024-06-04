@@ -124,7 +124,7 @@ tof_sensor_err_t vl53lx_init(const tof_sensor_handle_t* handle, tof_sensor_t* se
     /* Init the configuration types */
     init_config_types (sensor);
 
-    NRF_LOG_INFO("%s initialized", sensor->name);
+    NRF_LOG_INFO("%s created", sensor->name);
 
     return TOF_SENSOR_ERR_NONE;
 }

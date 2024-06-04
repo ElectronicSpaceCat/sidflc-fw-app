@@ -22,5 +22,6 @@
 
 void debug_cli_init(void);
 void debug_cli_process(void);
+void debug_cli_tof_enable_callback(void);
 
 #endif /* SRC_DEBUG_CLI_H_ */

@@ -58,64 +58,66 @@ static void hvx_gatts_queue_push(uint16_t* conn_handle, ble_gatts_hvx_params_t *
 static void characteristic_update(ble_tof_t *p_service, ble_gatts_char_handles_t *char_handle, uint8_t type, uint8_t *data, size_t data_len);
 static void characteristic_set(ble_tof_t *p_service, ble_gatts_char_handles_t *char_handle, uint8_t *data, size_t data_len, uint16_t offset);
 
-static void check_cccds_enabled(ble_gatts_evt_write_t const *p_evt_write, ble_tof_t *p_tof, ble_evt_t const *p_ble_evt) {
-    if(p_evt_write->len != 2) return;
-
-    if (p_evt_write->handle == p_tof->tof_range_char_handles.cccd_handle) {
-        tof_range_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
-    }
-    if (p_evt_write->handle == p_tof->tof_select_char_handles.cccd_handle) {
-        tof_select_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
-    }
-    if (p_evt_write->handle == p_tof->tof_config_char_handles.cccd_handle) {
-        tof_config_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
-    }
-    if (p_evt_write->handle == p_tof->tof_status_char_handles.cccd_handle) {
-        tof_status_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
-    }
-    if (p_evt_write->handle == p_tof->tof_ranging_enable_char_handles.cccd_handle) {
-        tof_rng_en_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
-    }
-    if (p_evt_write->handle == p_tof->tof_reset_char_handles.cccd_handle) {
-        tof_reset_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
-    }
-}
-
 static void on_write(ble_tof_t *p_tof, ble_evt_t const *p_ble_evt) {
     ble_gatts_evt_write_t const *p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
 
-    // Check the cccds indication enable status
-    check_cccds_enabled(p_evt_write, p_tof, p_ble_evt);
+    // ToF Range Data
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_tof->tof_range_char_handles.cccd_handle)) {
+        tof_range_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
+        return;
+    }
 
-    if (p_evt_write->handle == p_tof->tof_select_char_handles.value_handle) {
-        if ((p_evt_write->len == 1) && (p_tof->tof_select_write_handler != NULL)) {
-            p_tof->tof_select_write_handler(p_ble_evt->evt.gap_evt.conn_handle, p_evt_write->data[0]);
-        }
+    // ToF Sensor Status
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_tof->tof_status_char_handles.cccd_handle)) {
+        tof_status_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        return;
     }
-    // ToF sensor config write handle
-    else if (p_evt_write->handle == p_tof->tof_config_char_handles.value_handle) {
-        if ((p_evt_write->len == 7) && (p_tof->tof_config_write_handler != NULL)) {
-            int32_t value;
-            memcpy(&value, &p_evt_write->data[3], sizeof(value));
-            p_tof->tof_config_write_handler(
-                    p_ble_evt->evt.gap_evt.conn_handle,
-                    p_evt_write->data[0], // trgt
-                    p_evt_write->data[1], // cmd
-                    p_evt_write->data[2], // id
-                    value);
-        }
+
+    // ToF Sensor Select
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_tof->tof_select_char_handles.cccd_handle)) {
+        tof_select_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        return;
     }
+    else if ((p_evt_write->len == 1) && (p_evt_write->handle == p_tof->tof_select_char_handles.value_handle) && (p_tof->tof_select_write_handler != NULL)) {
+        p_tof->tof_select_write_handler(p_ble_evt->evt.gap_evt.conn_handle, p_evt_write->data[0]);
+        return;
+    }
+
+    // ToF Sensor Config
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_tof->tof_config_char_handles.cccd_handle)) {
+        tof_config_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        return;
+    }
+    else if ((p_evt_write->len == 7) && (p_evt_write->handle == p_tof->tof_config_char_handles.value_handle) && (p_tof->tof_config_write_handler != NULL)) {
+        int32_t value;
+        memcpy(&value, &p_evt_write->data[3], sizeof(value));
+        p_tof->tof_config_write_handler(
+                p_ble_evt->evt.gap_evt.conn_handle,
+                p_evt_write->data[0], // trgt
+                p_evt_write->data[1], // cmd
+                p_evt_write->data[2], // id
+                value);
+        return;
+    }
+
     // ToF sensor ranging enable write handle
-    else if (p_evt_write->handle == p_tof->tof_ranging_enable_char_handles.value_handle) {
-        if ((p_evt_write->len == 1) && (p_tof->tof_ranging_enable_write_handler != NULL)) {
-            p_tof->tof_ranging_enable_write_handler(p_ble_evt->evt.gap_evt.conn_handle, p_evt_write->data[0]);
-        }
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_tof->tof_ranging_enable_char_handles.cccd_handle)) {
+        tof_rng_en_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        return;
     }
+    else if ((p_evt_write->len == 1) && (p_evt_write->handle == p_tof->tof_ranging_enable_char_handles.value_handle) && (p_tof->tof_ranging_enable_write_handler != NULL)) {
+        p_tof->tof_ranging_enable_write_handler(p_ble_evt->evt.gap_evt.conn_handle, p_evt_write->data[0]);
+        return;
+    }
+
     // ToF sensor reset write handle
-    else if (p_evt_write->handle == p_tof->tof_reset_char_handles.value_handle) {
-        if ((p_evt_write->len == 1) && (p_tof->tof_reset_write_handler != NULL)) {
-            p_tof->tof_reset_write_handler(p_ble_evt->evt.gap_evt.conn_handle, p_evt_write->data[0]);
-        }
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_tof->tof_reset_char_handles.cccd_handle)) {
+        tof_reset_enabled = ble_srv_is_indication_enabled(p_evt_write->data);
+        return;
+    }
+    else if ((p_evt_write->len == 1) && (p_evt_write->handle == p_tof->tof_reset_char_handles.value_handle) && (p_tof->tof_reset_write_handler != NULL)) {
+        p_tof->tof_reset_write_handler(p_ble_evt->evt.gap_evt.conn_handle, p_evt_write->data[0]);
+        return;
     }
 }
 
@@ -129,9 +131,9 @@ void ble_tof_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context) {
             break;
         case BLE_GAP_EVT_DISCONNECTED:
             tof_range_enabled = false;
+            tof_status_enabled = false;
             tof_select_enabled = false;
             tof_config_enabled = false;
-            tof_status_enabled = false;
             tof_rng_en_enabled = false;
             tof_reset_enabled = false;
 
@@ -259,7 +261,6 @@ ret_code_t ble_tof_init(ble_tof_t *p_tof, const ble_tof_init_t *p_tof_init) {
     service_uuid.uuid = BLE_UUID_TOF_SERVICE;
 
     p_tof->evt_handler = p_tof_init->evt_handler;
-    p_tof->is_notification_supported = p_tof_init->support_notification;
     p_tof->tof_select_write_handler = p_tof_init->tof_select_write_handler;
     p_tof->tof_config_write_handler = p_tof_init->tof_config_write_handler;
     p_tof->tof_ranging_enable_write_handler = p_tof_init->tof_ranging_enable_write_handler;
@@ -287,7 +288,6 @@ ret_code_t ble_tof_init(ble_tof_t *p_tof, const ble_tof_init_t *p_tof_init) {
     return err_code;
 }
 
-// Update tof range data, notify if characteristic is enabled
 void tof_range_characteristic_update(ble_tof_t *p_tof, uint16_t *tof_range_value) {
     if(tof_range_enabled){
         characteristic_update(p_tof, &p_tof->tof_range_char_handles, BLE_GATT_HVX_NOTIFICATION, (uint8_t*) tof_range_value, sizeof(uint16_t));
@@ -297,7 +297,6 @@ void tof_range_characteristic_update(ble_tof_t *p_tof, uint16_t *tof_range_value
     }
 }
 
-// Update tof select data, notify if characteristic is enabled
 void tof_select_characteristic_update(ble_tof_t *p_tof, uint8_t sensor, uint8_t sensor_type) {
     uint16_t data = 0;
     data = (0x00FF & sensor);
@@ -311,7 +310,6 @@ void tof_select_characteristic_update(ble_tof_t *p_tof, uint8_t sensor, uint8_t 
     }
 }
 
-// Update tof config data, notify if characteristic is enabled
 void tof_config_characteristic_update(ble_tof_t *p_tof, dev_cfg_cmd_t *config_cmd) {
     uint8_t data[8];
     data[0] = config_cmd->trgt;
@@ -328,7 +326,6 @@ void tof_config_characteristic_update(ble_tof_t *p_tof, dev_cfg_cmd_t *config_cm
     }
 }
 
-// Update tof status data, notify if characteristic is enabled
 void tof_status_characteristic_update(ble_tof_t *p_tof, uint8_t *tof_status_value) {
     if(tof_status_enabled){
         characteristic_update(p_tof, &p_tof->tof_status_char_handles, BLE_GATT_HVX_INDICATION, (uint8_t*) tof_status_value, sizeof(uint8_t));
@@ -338,7 +335,6 @@ void tof_status_characteristic_update(ble_tof_t *p_tof, uint8_t *tof_status_valu
     }
 }
 
-// Update tof range enable data, notify if characteristic is enabled
 void tof_ranging_enable_characteristic_update(ble_tof_t *p_tof, uint8_t *tof_sampling_enabled) {
     if(tof_rng_en_enabled){
         characteristic_update(p_tof, &p_tof->tof_ranging_enable_char_handles, BLE_GATT_HVX_INDICATION, (uint8_t*) tof_sampling_enabled, sizeof(uint8_t));
@@ -348,7 +344,6 @@ void tof_ranging_enable_characteristic_update(ble_tof_t *p_tof, uint8_t *tof_sam
     }
 }
 
-// Update tof reset data, notify if characteristic is enabled
 void tof_reset_characteristic_update(ble_tof_t *p_tof, uint8_t *reset) {
     if(tof_reset_enabled){
         characteristic_update(p_tof, &p_tof->tof_reset_char_handles, BLE_GATT_HVX_INDICATION, (uint8_t*) reset, sizeof(uint8_t));

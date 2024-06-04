@@ -60,7 +60,6 @@ typedef void (*ble_pwr_evt_handler_t) (ble_pwr_t* p_pwr, ble_evt_t const *p_ble_
 typedef struct
 {
     ble_pwr_evt_handler_t       evt_handler;
-    bool                        support_notification;  /**< TRUE if notification of Battery Level measurement is supported. */
 } ble_pwr_init_t;
 
 // This structure contains various status information for our service.
@@ -70,7 +69,6 @@ struct ble_pwr_s
 {
     ble_pwr_evt_handler_t       evt_handler;
     uint16_t                    conn_handle;    /**< Handle of the current connection (as provided by the BLE stack, is BLE_CONN_HANDLE_INVALID if not in a connection).*/
-    bool                        is_notification_supported;
     uint16_t                    service_handle; /**< Handle of Our Service (as provided by the BLE stack). */
 	ble_gatts_char_handles_t    pwr_source_char_handles;
     ble_gatts_char_handles_t    pwr_batt_status_char_handles;

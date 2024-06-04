@@ -28,6 +28,7 @@
 #include "nrf_log_ctrl.h"
 
 static uint8_t debug_enabled = false;
+
 static uint8_t pwr_source_enabled = false;
 static uint8_t pwr_batt_status_enabled = false;
 static uint8_t pwr_batt_level_enabled = false;
@@ -35,25 +36,26 @@ static uint8_t pwr_batt_level_enabled = false;
 static void characteristic_update(ble_pwr_t *p_service, ble_gatts_char_handles_t* char_handle, uint8_t type, uint8_t *data, size_t data_len);
 static void characteristic_set(ble_pwr_t *p_service, ble_gatts_char_handles_t *char_handle, uint8_t *data, size_t data_len, uint16_t offset);
 
-static void check_cccds_enabled(ble_gatts_evt_write_t const *p_evt_write, ble_pwr_t *p_pwr, ble_evt_t const *p_ble_evt) {
-    if(p_evt_write->len != 2) return;
-
-    if (p_evt_write->handle == p_pwr->pwr_source_char_handles.cccd_handle) {
-        pwr_source_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
-    }
-    if (p_evt_write->handle == p_pwr->pwr_batt_status_char_handles.cccd_handle) {
-        pwr_batt_status_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
-    }
-    if (p_evt_write->handle == p_pwr->pwr_batt_level_char_handles.cccd_handle) {
-        pwr_batt_level_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
-    }
-}
-
 static void on_write(ble_pwr_t *p_pwr, ble_evt_t const *p_ble_evt) {
     ble_gatts_evt_write_t const *p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
 
-    // Check the cccds enable status
-    check_cccds_enabled(p_evt_write, p_pwr, p_ble_evt);
+    // Pwr Source
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_pwr->pwr_source_char_handles.cccd_handle)) {
+        pwr_source_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
+        return;
+    }
+
+    // Pwr Batt Status
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_pwr->pwr_batt_status_char_handles.cccd_handle)) {
+        pwr_batt_status_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
+        return;
+    }
+
+    // Pwr Batt Level
+    if ((p_evt_write->len == 2) && (p_evt_write->handle == p_pwr->pwr_batt_level_char_handles.cccd_handle)) {
+        pwr_batt_level_enabled = ble_srv_is_notification_enabled(p_evt_write->data);
+        return;
+    }
 }
 
 // Declaration of a function that will take care of some housekeeping of ble connections related to our service and characteristic
@@ -166,7 +168,6 @@ ret_code_t ble_pwr_init(ble_pwr_t *p_pwr, const ble_pwr_init_t *p_pwr_init) {
   service_uuid.uuid = BLE_UUID_PWR_SERVICE;
 
   p_pwr->evt_handler = p_pwr_init->evt_handler;
-  p_pwr->is_notification_supported = p_pwr_init->support_notification;
 
   err_code = sd_ble_uuid_vs_add(&base_uuid, &service_uuid.type);
   APP_ERROR_CHECK(err_code);
@@ -182,9 +183,9 @@ ret_code_t ble_pwr_init(ble_pwr_t *p_pwr, const ble_pwr_init_t *p_pwr_init) {
   APP_ERROR_CHECK(err_code);
 
   // Call the function our_char_add() to add our new characteristic to the service.
-  our_char_add(p_pwr, BLE_UUID_PWR_SOURCE,      true, false, BLE_GATT_HVX_NOTIFICATION, sizeof(uint8_t),  tof_pwr_get_mngt_data()->pwr_source,   &p_pwr->pwr_source_char_handles);
-  our_char_add(p_pwr, BLE_UUID_PWR_BATT_STATUS, true, false, BLE_GATT_HVX_NOTIFICATION, sizeof(uint8_t),  tof_pwr_get_mngt_data()->batt_status,   &p_pwr->pwr_batt_status_char_handles);
-  our_char_add(p_pwr, BLE_UUID_PWR_BATT_LEVEL,  true, false, BLE_GATT_HVX_NOTIFICATION, sizeof(uint32_t), tof_pwr_get_mngt_data()->batt_lvl_milli_volts, &p_pwr->pwr_batt_level_char_handles);
+  our_char_add(p_pwr, BLE_UUID_PWR_SOURCE,      true, false, BLE_GATT_HVX_NOTIFICATION, sizeof(uint8_t),  pwr_mgr_get_data()->pwr_source,   &p_pwr->pwr_source_char_handles);
+  our_char_add(p_pwr, BLE_UUID_PWR_BATT_STATUS, true, false, BLE_GATT_HVX_NOTIFICATION, sizeof(uint8_t),  pwr_mgr_get_data()->batt_status,   &p_pwr->pwr_batt_status_char_handles);
+  our_char_add(p_pwr, BLE_UUID_PWR_BATT_LEVEL,  true, false, BLE_GATT_HVX_NOTIFICATION, sizeof(uint32_t), pwr_mgr_get_data()->batt_lvl_milli_volts, &p_pwr->pwr_batt_level_char_handles);
 
   return err_code;
 }

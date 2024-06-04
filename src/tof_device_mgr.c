@@ -58,7 +58,10 @@ static tof_dev_mgr_err_t tof_dev_mgr_sensor_init (const tof_sensor_handle_t *sha
 static void tof_dev_mgr_process_cfg_cmd (void);
 static void tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd);
 
-void tof_dev_mgr_init (void) {
+/**
+ * Initialize flash-data-storage (FDS), two-wire-interface (TWI - i2c), and the time-of-flight (ToF) sensors
+ */
+void tof_dev_mgr_init(void) {
     tof_dev_mgr_err_t error = TOF_DEV_MGR_ERR_NONE;
     /* Initialize the i2c interface */
     error = tof_twi_init ();
@@ -93,11 +96,15 @@ void tof_dev_mgr_init (void) {
     NRF_LOG_INFO("ToF initialized");
 }
 
-void tof_dev_mgr_uninit (void) {
+void tof_dev_mgr_uninit(void) {
     tof_twi_uninit ();
 }
 
-void tof_dev_mgr_process (void) {
+/**
+ * Process the device manager.
+ * Switch sensors when ready and process configuration requests.
+ */
+void tof_dev_mgr_process(void) {
     // Make sure manager is initialized
     if (!initialized || !should_run) {
         return;
@@ -123,14 +130,21 @@ void tof_dev_mgr_process (void) {
         }
     }
     // Run current state
-    shandle.sensor->state ();
+    shandle.sensor->state();
     // Process configuration commands
-    tof_dev_mgr_process_cfg_cmd ();
+    tof_dev_mgr_process_cfg_cmd();
 
     should_run = false;
 }
 
-void tof_dev_mgr_set_cfg_cmd (uint8_t trgt, uint8_t cmd, uint8_t id, int32_t value) {
+/**
+ * Sets a configuration request for a given target.
+ * @param trgt
+ * @param cmd
+ * @param id
+ * @param value
+ */
+void tof_dev_mgr_set_cfg_cmd(uint8_t trgt, uint8_t cmd, uint8_t id, int32_t value) {
     switch (trgt) {
         case DEV_CFG_TRGT_SNSR:
             shandle.config_cmd.cmd = cmd;
@@ -149,7 +163,13 @@ void tof_dev_mgr_set_cfg_cmd (uint8_t trgt, uint8_t cmd, uint8_t id, int32_t val
     }
 }
 
-void tof_dev_mgr_sensor_select (tof_dev_mgr_sensor_id_t id) {
+/**
+ * Select requested sensor. The sensor state machine will notify the user
+ * when the requested sensor is active.
+ * If the the sensor is the same as requested, the user will be immediately notified.
+ * @param id
+ */
+void tof_dev_mgr_sensor_select(tof_dev_mgr_sensor_id_t id) {
     if (shandle.sensor->id == id) {
         NRF_LOG_INFO("%s already selected", shandle.sensor->name);
         tof_sensor_data_callback (TOF_DATA_SELECTED, shandle.sensor);
@@ -157,7 +177,6 @@ void tof_dev_mgr_sensor_select (tof_dev_mgr_sensor_id_t id) {
     else if (id < NUM_TOF_DEV_MGR_SNSR) {
         shandle.id_selected = id;
         NRF_LOG_INFO("%s requested", sensors[id].name);
-        // Let state machine notify of selected sensor when switching
     }
     else {
         NRF_LOG_INFO("invalid sensor id");
@@ -165,11 +184,21 @@ void tof_dev_mgr_sensor_select (tof_dev_mgr_sensor_id_t id) {
     }
 }
 
-const tof_sensor_handle_t* tof_dev_mgr_shandle_get (void) {
+/**
+ * Get the sensor handle.
+ * @return
+ */
+const tof_sensor_handle_t* tof_dev_mgr_shandle_get(void) {
     return &shandle;
 }
 
-int32_t tof_dev_mgr_get_cached_config (dev_cfg_trgt_t trgt, uint8_t config_id) {
+/**
+ * Get the cached configurations per target.
+ * @param trgt
+ * @param config_id
+ * @return
+ */
+int32_t tof_dev_mgr_get_cached_config(dev_cfg_trgt_t trgt, uint8_t config_id) {
     switch (trgt) {
         case DEV_CFG_TRGT_SNSR:
             if (config_id < shandle.sensor->num_configs) {
@@ -188,9 +217,12 @@ int32_t tof_dev_mgr_get_cached_config (dev_cfg_trgt_t trgt, uint8_t config_id) {
     return INVALID_CONFIG_VALUE;
 }
 
-void tof_dev_mgr_set_debug_enable (uint8_t value) {
+/**
+ * Enable/Disable sensor debugging, which outputs the ranging data.
+ * @param value
+ */
+void tof_dev_mgr_set_debug_enable(uint8_t value) {
     shandle.debug_enabled = value ? 1 : 0;
-    // Print message
     if (shandle.debug_enabled) {
         NRF_LOG_INFO("%s range debug enable", shandle.sensor->name);
     }
@@ -199,36 +231,51 @@ void tof_dev_mgr_set_debug_enable (uint8_t value) {
     }
 }
 
-void tof_dev_mgr_set_ranging_enable (uint8_t value) {
+/**
+ * Enable/Disable the sensor ranging and then sends a notification.
+ * @param value
+ */
+void tof_dev_mgr_set_ranging_enable(uint8_t value) {
     shandle.ranging_enabled = value ? 1 : 0;
-    // Print message
     if (shandle.ranging_enabled) {
         NRF_LOG_INFO("%s ranging enabled", shandle.sensor->name);
     }
     else {
         NRF_LOG_INFO("%s ranging disabled", shandle.sensor->name);
     }
-    // Notify user
     tof_sensor_data_callback (TOF_DATA_SAMPLING_ENABLED, &shandle.ranging_enabled);
 }
 
-void tof_dev_mgr_sensor_reset (uint8_t reset_type) {
+/**
+ * Send a reset command to the active sensor.
+ * @param reset_type
+ */
+void tof_dev_mgr_sensor_reset(uint8_t reset_type) {
     shandle.reset_cmd = reset_type;
 }
 
-void tof_dev_mgr_set_run_signal (void) {
+/**
+ * Signals when the process() call should run.
+ */
+void tof_dev_mgr_set_run_signal(void) {
     if (!should_run) {
         should_run = true;
     }
 }
 
-static tof_dev_mgr_err_t tof_dev_mgr_sensor_init (const tof_sensor_handle_t *shandle, tof_sensor_t *sensor) {
+/**
+ * Initialize the sensor by type
+ * @param shandle
+ * @param sensor
+ * @return
+ */
+static tof_dev_mgr_err_t tof_dev_mgr_sensor_init(const tof_sensor_handle_t *shandle, tof_sensor_t *sensor) {
     if (sensor->id >= NUM_TOF_SENSOR_TYPES) {
         return TOF_DEV_MGR_ERR_SENSOR_IDX_OOR;
     }
     // Create a name for the sensor using the type and id
     snprintf (sensor->name, sizeof(sensor->name), "%s_%d", tof_sensor_get_name_str (sensor->type), sensor->id);
-    // Initialize the sensor by type
+
     switch (sensor->type) {
         // VL53L4CD and VL53L4CX both use the VL53LX driver
         case TOF_SENSOR_TYPE_VL53L4CD:
@@ -246,7 +293,10 @@ static tof_dev_mgr_err_t tof_dev_mgr_sensor_init (const tof_sensor_handle_t *sha
     return TOF_SENSOR_ERR_NONE;
 }
 
-static void tof_dev_mgr_process_cfg_cmd (void) {
+/**
+ * Process configuration commands.
+ */
+static void tof_dev_mgr_process_cfg_cmd(void) {
     switch (cfg_cmd.d.trgt) {
         case DEV_CFG_TRGT_SNSR:
             return;
@@ -274,7 +324,7 @@ static void tof_dev_mgr_process_cfg_cmd (void) {
  * Handles configuration commands for getting/storing external data.
  * User can stored any uint32_t data up to an index id < MAX_STORAGE_DATA_BUFF_SIZE
  */
-static void tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd) {
+static void tof_dev_set_user_cfg(cfg_cmd_data_t *config_cmd) {
     uint8_t id = config_cmd->id;
     uint8_t cmd = config_cmd->cmd;
     int32_t value = config_cmd->value;
@@ -307,7 +357,12 @@ static void tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd) {
     }
 }
 
-static const char* tof_dev_mgr_get_error_str (tof_dev_mgr_err_t error) {
+/**
+ * Get string for error message.
+ * @param error
+ * @return
+ */
+static const char* tof_dev_mgr_get_error_str(tof_dev_mgr_err_t error) {
     switch (error) {
         case TOF_DEV_MGR_ERR_NONE:
             return "ok";
@@ -327,6 +382,10 @@ static const char* tof_dev_mgr_get_error_str (tof_dev_mgr_err_t error) {
     }
 }
 
-static void tof_dev_mgr_on_error_handler (tof_dev_mgr_err_t error) {
+/**
+ * Log an error message.
+ * @param error
+ */
+static void tof_dev_mgr_on_error_handler(tof_dev_mgr_err_t error) {
     NRF_LOG_INFO("ToF err: snsr_mgr - %s", tof_dev_mgr_get_error_str (error));
 }

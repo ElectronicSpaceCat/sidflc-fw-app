@@ -33,30 +33,37 @@
 #include "timer_delay.h"
 
 typedef enum {
-  TOF_PWR_SRC_BATT = 0,
-  TOF_PWR_SRC_USB
-}pwr_source_t;
+  PWR_MGR_SRC_BATT = 0,
+  PWR_MGR_SRC_USB
+}pwr_mgr_source_t;
 
 typedef enum {
-  TOF_PWR_CHARG_OFF = 0,
-  TOF_PWR_CHARG_ON
-}pwr_charg_state_t;
+  PWR_MGR_CHARG_OFF = 0,
+  PWR_MGR_CHARG_ON
+}pwr_mgr_charg_state_t;
 
 typedef enum {
-  TOF_PWR_LOW_VOLTAGE_SHUT_DOWN_INACTIVE = 0,
-  TOF_PWR_LOW_VOLTAGE_SHUT_DOWN_ACTIVE
-}pwr_low_voltage_sd_state_t;
+  PWR_MGR_LOW_VOLTAGE_SHUT_DOWN_INACTIVE = 0,
+  PWR_MGR_LOW_VOLTAGE_SHUT_DOWN_ACTIVE
+}pwr_mgr_low_voltage_sd_state_t;
 
 typedef enum {
-  TOF_BATT_OK = 0,
-  TOF_BATT_LOW,
-  TOF_BATT_VERY_LOW,
-  TOF_BATT_CHARGING,
-  TOF_BATT_CHARGING_COMPLETE,
-  TOF_BATT_MISSING,
-  TOF_BATT_UNKNOWN,
-  NUM_TOF_BATT_STATUS
-}pwr_batt_status_t;
+  PWR_MGR_BATT_OK = 0,
+  PWR_MGR_BATT_LOW,
+  PWR_MGR_BATT_VERY_LOW,
+  PWR_MGR_BATT_CHARGING,
+  PWR_MGR_BATT_CHARGING_COMPLETE,
+  PWR_MGR_BATT_MISSING,
+  PWR_MGR_BATT_UNKNOWN,
+  NUM_PWR_MGR_BATT_STATUS
+}pwr_mgr_batt_status_t;
+
+typedef enum {
+  PWR_MGR_NOTIFY_NONE = 0x0000,
+  PWR_MGR_NOTIFY_PWR_STATUS = 0x0001,
+  PWR_MGR_NOTIFY_BATT_STATUS = 0x0002,
+  PWR_MGR_NOTIFY_VOLTAGE_STATUS = 0x0004
+}pwr_mgr_notify_flag_t;
 
 #define ADC_INPUT_CHANNEL                       NRF_SAADC_INPUT_AIN4
 #define BATT_ENABLE_SETTLE_TIME_MS              50
@@ -95,9 +102,11 @@ APP_TIMER_DEF(m_delay_timer_id);
 
 // SAADC buffer
 static nrf_saadc_value_t adc_buf[2];
-static pwr_mngt_data_t m_pwr_mngt_data;
+static pwr_mgr_data_t m_pwr_mgr_data;
 static uint8_t _print_batt_sample_flag = 0;
 static uint8_t _enable_shutdown = 1;
+static pwr_mgr_notify_flag_t _notify_flag = PWR_MGR_NOTIFY_NONE;
+static uint8_t m_delay_active = false;
 
 static void button_signal_handler(uint8_t pin_no, uint8_t button_action);
 static void input_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action);
@@ -118,7 +127,7 @@ static void delay_timer_handler(void *p_context) {
   APP_ERROR_CHECK(err_code);
 }
 
-void tof_pwr_init(void){
+void pwr_mgr_init(void) {
   ret_code_t err_code;
 
   // PB_OUT used to detect when the power button is pressed
@@ -178,62 +187,76 @@ void tof_pwr_init(void){
   test_pin_low_voltage_shutdown();
 }
 
-void tof_pwr_uninit(void){
+
+void pwr_mgr_uninit(void){
   nrf_gpio_pin_clear(PIN_BM_EN);
   nrf_drv_saadc_uninit();
 }
 
-void tof_pwr_batt_sample_voltage(void){
-    static uint8_t m_delay_active = false;
-    // Turn battery monitor on
-    nrf_gpio_pin_set(PIN_BM_EN);
-    // If time > zero and timer not already started, then start it
-    if(!m_delay_active){
-      m_delay_active = true;
-      // Set up single shot delay timer to allow settle time before triggering a saadc sample
-      if(NRF_SUCCESS == app_timer_create(&m_delay_timer_id, APP_TIMER_MODE_SINGLE_SHOT, delay_timer_handler)) {
-          app_timer_start(m_delay_timer_id, APP_TIMER_TICKS(BATT_ENABLE_SETTLE_TIME_MS), &m_delay_active);
-      }
+void pwr_mgr_process(void) {
+    if((_notify_flag & PWR_MGR_NOTIFY_PWR_STATUS) > 0) {
+        pwr_mgr_data_callback(&m_pwr_mgr_data, PWR_MGR_DATA_INPUT_SOURCE);
+        pwr_mgr_batt_sample_voltage();
+    }
+    if((_notify_flag & PWR_MGR_NOTIFY_BATT_STATUS) > 0) {
+        pwr_mgr_data_callback(&m_pwr_mgr_data, PWR_MGR_DATA_BATT_STATUS);
+    }
+    if((_notify_flag & PWR_MGR_NOTIFY_VOLTAGE_STATUS) > 0) {
+        pwr_mgr_data_callback(&m_pwr_mgr_data, PWR_MGR_DATA_BATT_LEVEL);
+    }
+    if(_notify_flag){
+        _notify_flag = PWR_MGR_NOTIFY_NONE;
     }
 }
 
-void tof_pwr_batt_status_update(void) {
-    static uint8_t prev_batt_status = TOF_BATT_UNKNOWN;
+void pwr_mgr_batt_sample_voltage(void) {
+    if (!m_delay_active) {
+        m_delay_active = true;
+        // Turn battery monitor on
+        nrf_gpio_pin_set (PIN_BM_EN);
+        // Set up single shot delay timer to allow settle time before triggering a saadc sample
+        if (NRF_SUCCESS == app_timer_create (&m_delay_timer_id, APP_TIMER_MODE_SINGLE_SHOT, delay_timer_handler)) {
+            app_timer_start (m_delay_timer_id, APP_TIMER_TICKS(BATT_ENABLE_SETTLE_TIME_MS), &m_delay_active);
+        }
+    }
+}
+
+void pwr_mgr_batt_status_update(void) {
+    static uint8_t prev_batt_status = PWR_MGR_BATT_UNKNOWN;
     // Update the battery status
-    if (TOF_PWR_LOW_VOLTAGE_SHUT_DOWN_ACTIVE == m_pwr_mngt_data.low_voltage_sd_state) {
-        m_pwr_mngt_data.batt_status = TOF_BATT_VERY_LOW;
+    if (PWR_MGR_LOW_VOLTAGE_SHUT_DOWN_ACTIVE == m_pwr_mgr_data.low_voltage_sd_state) {
+        m_pwr_mgr_data.batt_status = PWR_MGR_BATT_VERY_LOW;
     }
-    else if (TOF_PWR_SRC_USB == m_pwr_mngt_data.pwr_source && TOF_PWR_CHARG_ON == m_pwr_mngt_data.charge_state) {
-        m_pwr_mngt_data.batt_status = TOF_BATT_CHARGING;
+    else if (PWR_MGR_SRC_USB == m_pwr_mgr_data.pwr_source && PWR_MGR_CHARG_ON == m_pwr_mgr_data.charge_state) {
+        m_pwr_mgr_data.batt_status = PWR_MGR_BATT_CHARGING;
     }
-    else if (TOF_PWR_SRC_USB == m_pwr_mngt_data.pwr_source && TOF_BATT_CHARGING == prev_batt_status) {
+    else if (PWR_MGR_SRC_USB == m_pwr_mgr_data.pwr_source && PWR_MGR_BATT_CHARGING == prev_batt_status) {
         // NOTE: AG - This status triggers once to indicate to the user to be handled as an event
-        m_pwr_mngt_data.batt_status = TOF_BATT_CHARGING_COMPLETE;
+        m_pwr_mgr_data.batt_status = PWR_MGR_BATT_CHARGING_COMPLETE;
     }
-    else if (m_pwr_mngt_data.batt_lvl_milli_volts <= ADC_BATT_MVOLTS_LOW_THRESHOLD) {
-        m_pwr_mngt_data.batt_status = TOF_BATT_LOW;
+    else if (m_pwr_mgr_data.batt_lvl_milli_volts <= ADC_BATT_MVOLTS_LOW_THRESHOLD) {
+        m_pwr_mgr_data.batt_status = PWR_MGR_BATT_LOW;
     }
-    else if (m_pwr_mngt_data.batt_lvl_milli_volts >= ADC_BATT_MVOLTS_OK_THRESHOLD) {
-        m_pwr_mngt_data.batt_status = TOF_BATT_OK;
+    else if (m_pwr_mgr_data.batt_lvl_milli_volts >= ADC_BATT_MVOLTS_OK_THRESHOLD) {
+        m_pwr_mgr_data.batt_status = PWR_MGR_BATT_OK;
     }
     else {
-        // Do nothing if battery voltage in the dead-band window ADC_BATT_MVOLTS_LOW_THRESHOLD <-> ADC_BATT_MVOLTS_OK_THRESHOLD
+        // Do nothing if battery voltage in the dead-band window ADC_BATT_MVOLTS_LOW_THRESHOLD to ADC_BATT_MVOLTS_OK_THRESHOLD
     }
 
-    if(prev_batt_status != m_pwr_mngt_data.batt_status){
-        prev_batt_status = m_pwr_mngt_data.batt_status;
-        // Callback for the application to call tasks such as BLE service characteristic updates
-        tof_pwr_data_callback(&m_pwr_mngt_data, TOF_PWR_DATA_BATT_STATUS);
+    if(prev_batt_status != m_pwr_mgr_data.batt_status){
+        prev_batt_status = m_pwr_mgr_data.batt_status;
         // Print batt status message
-        NRF_LOG_INFO("SYS batt %s", get_batt_status_str(m_pwr_mngt_data.batt_status));
+        NRF_LOG_INFO("SYS batt %s", get_batt_status_str(m_pwr_mgr_data.batt_status));
+        _notify_flag |= PWR_MGR_NOTIFY_BATT_STATUS;
     }
 }
 
-const pwr_mngt_data_t* tof_pwr_get_mngt_data(void){
-  return &m_pwr_mngt_data;
+const pwr_mgr_data_t* pwr_mgr_get_data(void){
+  return &m_pwr_mgr_data;
 }
 
-void tof_pwr_batt_print_enable(void){
+void pwr_mgr_batt_debug_enable(void){
   _print_batt_sample_flag = _print_batt_sample_flag ? 0 : 1;
   if (_print_batt_sample_flag) {
 	  NRF_LOG_INFO("SYS batt debug enable");
@@ -243,7 +266,7 @@ void tof_pwr_batt_print_enable(void){
   }
 }
 
-void tof_pwr_reset(void){
+void pwr_mgr_reset(void){
     NRF_LOG_INFO("SYS reset...");
 #ifdef SOFTDEVICE_PRESENT
     sd_nvic_SystemReset();
@@ -252,17 +275,19 @@ void tof_pwr_reset(void){
 #endif
 }
 
-void tof_pwr_shutdown(void) {;
-	if (!_enable_shutdown)
+void pwr_mgr_shutdown(void) {
+	if (!_enable_shutdown) {
 		return;
-
+	}
 	NRF_LOG_INFO("SYS shutdown...");
-	NRF_LOG_FLUSH();
+    while(NRF_LOG_PROCESS()){
+        // Empty logs..
+    }
 	// Remove system power
 	nrf_gpio_pin_clear(PIN_PS_HOLD);
 }
 
-void tof_pwr_shutdown_enable(void) {
+void pwr_mgr_shutdown_enable(void) {
 	_enable_shutdown =  _enable_shutdown? 0 : 1;
     if (_enable_shutdown) {
     	NRF_LOG_INFO("SYS shutdown enabled");
@@ -327,15 +352,15 @@ static void button_signal_handler(uint8_t pin_no, uint8_t button_action){
         }
       // Was button pressed?
       if(button_action_prev != button_action && APP_BUTTON_RELEASE == button_action){
-        tof_pwr_shutdown();
+        pwr_mgr_shutdown();
       }
+      button_action_prev = button_action;
       break;
+
     default:
         // Do nothing..
       break;
   }
-
-  button_action_prev = button_action;
 }
 
 /**
@@ -398,74 +423,69 @@ static void saadc_event_handler(nrf_drv_saadc_evt_t const * p_event)
 
         // Get the raw milli volts
         double mvolts = ADC_RESULT_IN_MILLI_VOLTS(adc_result);
-        m_pwr_mngt_data.batt_lvl_milli_volts = (uint32_t)ADC_MVOLTS_TO_VBATT_MVOLTS(mvolts);
+        m_pwr_mgr_data.batt_lvl_milli_volts = (uint32_t)ADC_MVOLTS_TO_VBATT_MVOLTS(mvolts);
         // Convert milli volts to percentage
-        //m_pwr_mngt_data.batt_lvl_percent = batt_mvolts_to_percent(m_pwr_mngt_data.batt_lvl_milli_volts);
+        //m_pwr_mgr_data.batt_lvl_percent = batt_mvolts_to_percent(m_pwr_mgr_data.batt_lvl_milli_volts);
 
         if(_print_batt_sample_flag){
-          NRF_LOG_INFO("SYS batt: %d cnt, %d mV", adc_result, m_pwr_mngt_data.batt_lvl_milli_volts);
+          NRF_LOG_INFO("SYS batt: %d cnt, %d mV", adc_result, m_pwr_mgr_data.batt_lvl_milli_volts);
         }
 
-        // Update the battery level after a successful voltage sample
-        tof_pwr_data_callback(&m_pwr_mngt_data, TOF_PWR_DATA_BATT_LEVEL);
+        _notify_flag |= PWR_MGR_NOTIFY_VOLTAGE_STATUS;
 
-        // Update the battery status after a successful voltage sample
-        tof_pwr_batt_status_update();
+        pwr_mgr_batt_status_update();
     }
 }
 
 static void test_pin_pwr_on_status(void){
   if(nrf_gpio_pin_read(PIN_PWR_ON_STATUS)){
-    m_pwr_mngt_data.pwr_source = TOF_PWR_SRC_BATT;
+    m_pwr_mgr_data.pwr_source = PWR_MGR_SRC_BATT;
     NRF_LOG_INFO("SYS ISR: pwr input BATT");
   }
   else{
-    m_pwr_mngt_data.pwr_source = TOF_PWR_SRC_USB;
+    m_pwr_mgr_data.pwr_source = PWR_MGR_SRC_USB;
     NRF_LOG_INFO("SYS ISR: pwr input USB");
   }
-  tof_pwr_data_callback(&m_pwr_mngt_data, TOF_PWR_DATA_INPUT_SOURCE);
-  tof_pwr_batt_sample_voltage();
+  _notify_flag |= PWR_MGR_NOTIFY_PWR_STATUS;
 }
 
 static void test_pin_charge_status(void){
   if(nrf_gpio_pin_read(PIN_CHARGE_STATUS)){
-    m_pwr_mngt_data.charge_state = TOF_PWR_CHARG_ON;
+    m_pwr_mgr_data.charge_state = PWR_MGR_CHARG_ON;
     NRF_LOG_INFO("SYS ISR: batt charger enabled");
   }
   else{
-    m_pwr_mngt_data.charge_state = TOF_PWR_CHARG_OFF;
+    m_pwr_mgr_data.charge_state = PWR_MGR_CHARG_OFF;
     NRF_LOG_INFO("SYS ISR: batt charger disabled");
   }
-  tof_pwr_batt_sample_voltage();
 }
 
 static void test_pin_low_voltage_shutdown(void){
   // PIN_INT is held high during start up then driven low
   if(nrf_gpio_pin_read(PIN_INT)){
-    m_pwr_mngt_data.low_voltage_sd_state = TOF_PWR_LOW_VOLTAGE_SHUT_DOWN_INACTIVE;
+    m_pwr_mgr_data.low_voltage_sd_state = PWR_MGR_LOW_VOLTAGE_SHUT_DOWN_INACTIVE;
     NRF_LOG_INFO("SYS ISR: lsvd inactive");
   }
   // If PIN_INT is low and PIN_PB_OUT is high then low voltage shutdown started
   else {
 	  if(nrf_gpio_pin_read(PIN_PB_OUT)){
-		m_pwr_mngt_data.low_voltage_sd_state = TOF_PWR_LOW_VOLTAGE_SHUT_DOWN_ACTIVE;
+		m_pwr_mgr_data.low_voltage_sd_state = PWR_MGR_LOW_VOLTAGE_SHUT_DOWN_ACTIVE;
 		NRF_LOG_INFO("SYS ISR: lsvd started");
 	  }
   }
-  tof_pwr_batt_sample_voltage();
 }
 
 static const char* get_batt_status_str(uint8_t status){
     switch(status){
-        case TOF_BATT_VERY_LOW:
+        case PWR_MGR_BATT_VERY_LOW:
             return "voltage very low, shutdown imminent";
-        case TOF_BATT_CHARGING:
+        case PWR_MGR_BATT_CHARGING:
         	return "charging";
-        case TOF_BATT_CHARGING_COMPLETE:
+        case PWR_MGR_BATT_CHARGING_COMPLETE:
         	return "charging complete";
-        case TOF_BATT_LOW:
+        case PWR_MGR_BATT_LOW:
         	return "voltage low";
-        case TOF_BATT_OK:
+        case PWR_MGR_BATT_OK:
         	return "voltage ok";
         default:
         	return "status unknown";

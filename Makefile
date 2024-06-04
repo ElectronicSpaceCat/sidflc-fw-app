@@ -10,7 +10,40 @@ SOFT_DEVICE_VERSION := 7.2.0
 VL53L4CX_ROOT := $(PROJ_DIR)/libs/VL53L4CX_API_v1.2.8
 
 $(OUTPUT_DIRECTORY)/$(TARGETS).out: \
-  LINKER_SCRIPT  := $(LINKER_DIR)/ble_gcc_nrf52_sd.ld
+  LINKER_SCRIPT := $(LINKER_DIR)/ble_gcc_nrf52_sd.ld
+
+# Optimization flags
+ifeq ($(MMD), 1)
+OPT += -O0
+CFLAGS += -ggdb
+CDEFS += -DMMD
+CDEFS += -DDEBUG
+CDEFS += -DDEBUG_NRF
+CDEFS += -DCONFIG_JLINK_MONITOR_ENABLED
+CDEFS += -DAPP_TIMER_KEEPS_RTC_ACTIVE=1
+SRC_FILES += \
+	$(PROJ_DIR)/src/JLINK_MONITOR.c \
+	$(PROJ_DIR)/src/JLINK_MONITOR_ISR_SES.s \
+$(info -- Building for Monitor Debug Mode)
+endif
+
+ifeq ($(HALT), 1)
+OPT += -O0
+CFLAGS += -ggdb
+CDEFS += -DDEBUG
+CDEFS += -DDEBUG_NRF
+$(info -- Building for Halt Febug Mode)
+endif
+
+ifeq ($(RELEASE), 1)
+OPT += -Os -g3
+$(info -- Building for Release)
+endif
+
+$(info -- SoftDevice set to $(SOFT_DEVICE))
+
+# Uncomment the line below to enable link time optimization
+#OPT += -flto
 
 # Source files common to all targets
 SRC_FILES += \
@@ -271,13 +304,6 @@ INC_FOLDERS += \
 	$(SDK_ROOT)/modules/nrfx/mdk \
 	$(SDK_ROOT)/modules/nrfx/soc \
 
-# Libraries common to all targets
-LIB_FILES += \
-
-# Optimization flags
-OPT = -Os -g3
-# Uncomment the line below to enable link time optimization
-#OPT += -flto
 
 # Common user defines
 CDEFS += -DBOARD_CUSTOM
@@ -290,7 +316,7 @@ CDEFS += -DCONFIG_GPIO_AS_PINRESET
 CDEFS += -DCONFIG_NFCT_PINS_AS_GPIOS
 CDEFS += -DFLOAT_ABI_HARD
 CDEFS += -DBL_SETTINGS_ACCESS_ONLY
-CDEFS += -DS112
+CDEFS += -D`echo $(SOFT_DEVICE) | tr a-z A-Z`  # Set SD to upper case
 CDEFS += -DNRFX_COREDEP_DELAY_US_LOOP_CYCLES=3
 CDEFS += -DNRF_DFU_SVCI_ENABLED
 CDEFS += -DNRF_DFU_TRANSPORT_BLE=1

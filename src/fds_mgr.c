@@ -28,7 +28,6 @@ static fds_record_t record;
 static fds_record_desc_t record_desc;
 
 static bool fds_registered = false;
-static bool fds_inited = false;
 
 static volatile uint8_t m_tof_dfs_active = false;
 
@@ -114,6 +113,16 @@ static void fds_evt_handler(fds_evt_t const *p_fds_evt){
 
 ret_code_t fds_mgr_init(void) {
     ret_code_t status = NRF_SUCCESS;
+    bool fds_initialized = false;
+
+    fds_stat_t stat;
+    if(FDS_ERR_NOT_INITIALIZED == fds_stat(&stat)) {
+        fds_initialized = false;
+    }
+    else {
+        fds_initialized = true;
+        NRF_LOG_INFO("FDS: already initialized");
+    }
 
     if(!fds_registered){
         status = fds_register(fds_evt_handler);
@@ -125,12 +134,13 @@ ret_code_t fds_mgr_init(void) {
         }
     }
 
-    if(!fds_inited){
+    if(!fds_initialized){
+        NRF_LOG_INFO("FDS: initializing");
         m_tof_dfs_active = true;
         status = fds_init();
         if (!status){
             wfe(&m_tof_dfs_active);
-            fds_inited = true;
+            fds_initialized = true;
         }
     }
 
