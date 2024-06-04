@@ -52,11 +52,11 @@ static int32_t user_fds_data[MAX_USER_CONFIG_BUFF_SIZE];
 static bool initialized = false;
 static bool should_run = false;
 
-static const char*tof_dev_mgr_get_error_str (tof_dev_mgr_err_t error);
-static void tof_dev_mgr_on_error_handler (tof_dev_mgr_err_t error);
-static tof_dev_mgr_err_t tof_dev_mgr_sensor_init (const tof_sensor_handle_t *shandle, tof_sensor_t *sensor);
-static void tof_dev_mgr_process_cfg_cmd (void);
-static void tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd);
+static const char*tof_dev_mgr_get_error_str(tof_dev_mgr_err_t error);
+static void tof_dev_mgr_on_error_handler(tof_dev_mgr_err_t error);
+static tof_dev_mgr_err_t tof_dev_mgr_sensor_init(const tof_sensor_handle_t *shandle, tof_sensor_t *sensor);
+static void tof_dev_mgr_process_cfg_cmd(void);
+static void tof_dev_set_user_cfg(cfg_cmd_data_t *config_cmd);
 
 /**
  * Initialize flash-data-storage (FDS), two-wire-interface (TWI - i2c), and the time-of-flight (ToF) sensors
@@ -64,24 +64,24 @@ static void tof_dev_set_user_cfg (cfg_cmd_data_t *config_cmd);
 void tof_dev_mgr_init(void) {
     tof_dev_mgr_err_t error = TOF_DEV_MGR_ERR_NONE;
     /* Initialize the i2c interface */
-    error = tof_twi_init ();
+    error = tof_twi_init();
     if (error) {
-        tof_dev_mgr_on_error_handler (TOF_DEV_MGR_ERR_COMMS_INIT);
+        tof_dev_mgr_on_error_handler(TOF_DEV_MGR_ERR_COMMS_INIT);
         return;
     }
     /* Initialize the fds interface */
-    error = fds_mgr_init ();
+    error = fds_mgr_init();
     if (error) {
-        tof_dev_mgr_on_error_handler (TOF_DEV_MGR_ERR_FDS_INIT);
+        tof_dev_mgr_on_error_handler(TOF_DEV_MGR_ERR_FDS_INIT);
         return;
     }
     // Read in the external stored data, ignore error if it doesn't exist
-    (void) fds_mgr_read (FILE_ID_USER_STORAGE, RKEY_USER_STORAGE, (uint8_t*) &user_fds_data[0], sizeof(user_fds_data));
+    (void) fds_mgr_read(FILE_ID_USER_STORAGE, RKEY_USER_STORAGE, (uint8_t*) &user_fds_data[0], sizeof(user_fds_data));
     // Initialize sensors
     for (uint8_t i = 0; i < NUM_TOF_DEV_MGR_SNSR; ++i) {
-        error = tof_dev_mgr_sensor_init (&shandle, &sensors[i]);
+        error = tof_dev_mgr_sensor_init(&shandle, &sensors[i]);
         if (error) {
-            tof_dev_mgr_on_error_handler (TOF_DEV_MGR_ERR_SENSOR_INIT);
+            tof_dev_mgr_on_error_handler(TOF_DEV_MGR_ERR_SENSOR_INIT);
             return;
         }
     }
@@ -97,7 +97,7 @@ void tof_dev_mgr_init(void) {
 }
 
 void tof_dev_mgr_uninit(void) {
-    tof_twi_uninit ();
+    tof_twi_uninit();
 }
 
 /**
@@ -117,7 +117,7 @@ void tof_dev_mgr_process(void) {
     if (!shandle.sensor) {
         shandle.sensor = &sensors[shandle.id_selected];
     }
-    // Is selected sensor is different than the active sensor?
+    // Is selected sensor different than the active sensor?
     if (shandle.sensor != &sensors[shandle.id_selected]) {
         // Yes - Switch sensor only when the active sensor status is in Standby or Error
         switch (shandle.sensor->status) {
@@ -172,7 +172,7 @@ void tof_dev_mgr_set_cfg_cmd(uint8_t trgt, uint8_t cmd, uint8_t id, int32_t valu
 void tof_dev_mgr_sensor_select(tof_dev_mgr_sensor_id_t id) {
     if (shandle.sensor->id == id) {
         NRF_LOG_INFO("%s already selected", shandle.sensor->name);
-        tof_sensor_data_callback (TOF_DATA_SELECTED, shandle.sensor);
+        tof_sensor_data_callback(TOF_DATA_SELECTED, shandle.sensor);
     }
     else if (id < NUM_TOF_DEV_MGR_SNSR) {
         shandle.id_selected = id;
@@ -180,7 +180,7 @@ void tof_dev_mgr_sensor_select(tof_dev_mgr_sensor_id_t id) {
     }
     else {
         NRF_LOG_INFO("invalid sensor id");
-        tof_sensor_data_callback (TOF_DATA_SELECTED, shandle.sensor);
+        tof_sensor_data_callback(TOF_DATA_SELECTED, shandle.sensor);
     }
 }
 
@@ -243,7 +243,7 @@ void tof_dev_mgr_set_ranging_enable(uint8_t value) {
     else {
         NRF_LOG_INFO("%s ranging disabled", shandle.sensor->name);
     }
-    tof_sensor_data_callback (TOF_DATA_SAMPLING_ENABLED, &shandle.ranging_enabled);
+    tof_sensor_data_callback(TOF_DATA_SAMPLING_ENABLED, &shandle.ranging_enabled);
 }
 
 /**
@@ -274,13 +274,13 @@ static tof_dev_mgr_err_t tof_dev_mgr_sensor_init(const tof_sensor_handle_t *shan
         return TOF_DEV_MGR_ERR_SENSOR_IDX_OOR;
     }
     // Create a name for the sensor using the type and id
-    snprintf (sensor->name, sizeof(sensor->name), "%s_%d", tof_sensor_get_name_str (sensor->type), sensor->id);
+    snprintf(sensor->name, sizeof(sensor->name), "%s_%d", tof_sensor_get_name_str (sensor->type), sensor->id);
 
-    switch (sensor->type) {
+    switch(sensor->type) {
         // VL53L4CD and VL53L4CX both use the VL53LX driver
         case TOF_SENSOR_TYPE_VL53L4CD:
         case TOF_SENSOR_TYPE_VL53L4CX: {
-            tof_sensor_err_t err = vl53lx_init (shandle, sensor);
+            tof_sensor_err_t err = vl53lx_init(shandle, sensor);
             if (TOF_SENSOR_ERR_NONE != err) {
                 return TOF_DEV_MGR_ERR_SENSOR_INIT;
             }
@@ -304,8 +304,8 @@ static void tof_dev_mgr_process_cfg_cmd(void) {
             if (!cfg_cmd.pending) {
                 return;
             }
-            cfg_cmd_process_msg ("user_data", &cfg_cmd.d.cfg, &tof_dev_set_user_cfg);
-            tof_dev_cfg_cmd_callback (&cfg_cmd.d);
+            cfg_cmd_process_msg("user_data", &cfg_cmd.d.cfg, &tof_dev_set_user_cfg);
+            tof_dev_cfg_cmd_callback(&cfg_cmd.d);
             cfg_cmd.pending = false;
             return;
         default:
@@ -313,8 +313,8 @@ static void tof_dev_mgr_process_cfg_cmd(void) {
                 return;
             }
             cfg_cmd.d.cfg.status = CONFIG_STAT_NA;
-            cfg_cmd_process_msg ("invalid target", &cfg_cmd.d.cfg, NULL);
-            tof_dev_cfg_cmd_callback (&cfg_cmd.d);
+            cfg_cmd_process_msg("invalid target", &cfg_cmd.d.cfg, NULL);
+            tof_dev_cfg_cmd_callback(&cfg_cmd.d);
             cfg_cmd.pending = false;
             return;
     }
@@ -349,7 +349,7 @@ static void tof_dev_set_user_cfg(cfg_cmd_data_t *config_cmd) {
             // Maybe cache a default value in the future
             return;
         case CONFIG_CMD_STORE:
-            fds_mgr_write (FILE_ID_USER_STORAGE, RKEY_USER_STORAGE, (uint8_t*) &user_fds_data[0], sizeof(user_fds_data));
+            fds_mgr_write(FILE_ID_USER_STORAGE, RKEY_USER_STORAGE, (uint8_t*) &user_fds_data[0], sizeof(user_fds_data));
             return;
         default:
             config_cmd->status = CONFIG_STAT_INVALID;

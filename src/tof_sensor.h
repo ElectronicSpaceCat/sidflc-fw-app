@@ -33,7 +33,7 @@
 #define RKEY_SNSR_DATA_CAL            (0x5001)
 #define RKEY_SNSR_DATA_USER           (0x5002)
 #define MAX_SNSR_CONFIG_BUFF_SIZE     (20)
-#define FILD_ID_SNSR_DATA(snsr_id)    (0x0500 | snsr_id)
+#define FILE_ID_SNSR_DATA(snsr_id)    (0x0500 | snsr_id)
 /** Macro for calculating the sensor configurations storage size to FDS */
 #define SNSR_CFG_STORAGE_SIZE(device) (device->sensor->num_configs * sizeof(int32_t))
 
@@ -61,7 +61,6 @@ typedef enum {
  * sent to the user */
 typedef enum {
     TOF_SENSOR_STATUS_BOOTING = 0,
-    TOF_SENSOR_STATUS_CONFIG,
     TOF_SENSOR_STATUS_READY,
     TOF_SENSOR_STATUS_STANDBY,
     TOF_SENSOR_STATUS_ERROR,
@@ -115,7 +114,7 @@ typedef struct {
     uint8_t status; 		// status
     uint8_t error; 			// active error
     uint16_t distance_mm;   // distance
-    uint16_t sample_count;  // distance sample count
+    uint32_t sample_count;  // distance sample count
     tof_sensor_cfg_data_t config[MAX_SNSR_CONFIG_BUFF_SIZE]; // configuration values
     void* context; 			// unique data
 } tof_sensor_t;

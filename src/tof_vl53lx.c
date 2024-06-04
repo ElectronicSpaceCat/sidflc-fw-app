@@ -209,7 +209,7 @@ static void state_prepare(void) {
         case TOF_SENSOR_RESET_SENSOR:
             // Read calibration data from storage if it exists
             status = fds_mgr_read(
-                    FILD_ID_SNSR_DATA(shandle->sensor->id),
+                    FILE_ID_SNSR_DATA(shandle->sensor->id),
                     RKEY_SNSR_DATA_CAL,
                     (uint8_t*) &VL53LX_DATA(shandle->sensor)->cal,
                     sizeof(VL53LX_DATA(shandle->sensor)->cal));
@@ -220,7 +220,7 @@ static void state_prepare(void) {
 
             // Read user configurations from storage if it exists
             status = fds_mgr_read (
-                    FILD_ID_SNSR_DATA(shandle->sensor->id),
+                    FILE_ID_SNSR_DATA(shandle->sensor->id),
                     RKEY_SNSR_DATA_USER,
                     (uint8_t*) &cfg_buff,
                     SNSR_CFG_STORAGE_SIZE(shandle));
@@ -274,8 +274,8 @@ static void state_prepare(void) {
             break;
 
         case TOF_SENSOR_RESET_SENSOR_FACTORY:
-            fds_mgr_delete(FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_CAL);
-            fds_mgr_delete(FILD_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_USER);
+            fds_mgr_delete(FILE_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_CAL);
+            fds_mgr_delete(FILE_ID_SNSR_DATA(shandle->sensor->id), RKEY_SNSR_DATA_USER);
             break;
     }
 
@@ -515,7 +515,7 @@ static void config_cmd_handler(cfg_cmd_data_t* cfg) {
             VL53LX_GetCalibrationData(VL53LX(shandle->sensor), &VL53LX_DATA(shandle->sensor)->cal);
             // Store the cal data
             fds_mgr_write(
-                FILD_ID_SNSR_DATA(shandle->sensor->id),
+                FILE_ID_SNSR_DATA(shandle->sensor->id),
                 RKEY_SNSR_DATA_CAL,
                 (uint8_t*)&VL53LX_DATA(shandle->sensor)->cal,
                 sizeof(VL53LX_DATA(shandle->sensor)->cal));
@@ -526,7 +526,7 @@ static void config_cmd_handler(cfg_cmd_data_t* cfg) {
             }
             // Store user configurations
             fds_mgr_write(
-                FILD_ID_SNSR_DATA(shandle->sensor->id),
+                FILE_ID_SNSR_DATA(shandle->sensor->id),
                 RKEY_SNSR_DATA_USER,
                 (uint8_t*)&cfg_buff,
                 SNSR_CFG_STORAGE_SIZE(shandle));
