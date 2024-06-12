@@ -199,17 +199,17 @@ VL53LX_Error VL53LX_DataInit(VL53LX_DEV Dev)
 	VL53LX_Error Status = VL53LX_ERROR_NONE;
 	VL53LX_LLDriverData_t *pdev;
 	uint8_t  measurement_mode;
+	uint8_t i = 0;
 
 	LOG_FUNCTION_START("");
 
 
 #ifdef USE_I2C_2V8
-	uint8_t i;
+
 	Status = VL53LX_RdByte(Dev, VL53LX_PAD_I2C_HV__EXTSUP_CONFIG, &i);
 	if (Status == VL53LX_ERROR_NONE) {
-		i = (i & 0xfe) | 0x01;
-		Status = VL53LX_WrByte(Dev, VL53LX_PAD_I2C_HV__EXTSUP_CONFIG,
-				i);
+	    i = (i & 0xfe) | 0x01;
+		Status = VL53LX_WrByte(Dev, VL53LX_PAD_I2C_HV__EXTSUP_CONFIG, i);
 	}
 #endif
 
@@ -743,6 +743,7 @@ static VL53LX_Error SetTargetData(VL53LX_DEV Dev,
 	int32_t ExtendedRangeEnabled = 0;
 	uint8_t uwr_status;
 	int16_t AddOffset;
+	uint8_t histo_merge_nb;
 
 	SUPPRESS_UNUSED_WARNING(Dev);
 
@@ -809,8 +810,9 @@ static VL53LX_Error SetTargetData(VL53LX_DEV Dev,
 
 	pRangeData->ExtendedRange = 0;
 
+	Status = VL53LX_compute_histo_merge_nb(Dev, &histo_merge_nb);
 	if ((active_results != 1) ||
-		(pdev->PreviousRangeActiveResults != 1))
+		(pdev->PreviousRangeActiveResults != 1)||(histo_merge_nb == 0))
 		ExtendedRangeEnabled = 0;
 
 	if (ExtendedRangeEnabled &&
@@ -1142,14 +1144,11 @@ VL53LX_Error VL53LX_PerformRefSpadManagement(VL53LX_DEV Dev)
 	pdev = VL53LXDevStructGetLLDriverHandle(Dev);
 	pc = &pdev->customer;
 
-	if (Status == VL53LX_ERROR_NONE) {
 		DistanceMode = VL53LXDevDataGet(Dev,
 				CurrentParameters.DistanceMode);
-		Status = VL53LX_run_ref_spad_char(Dev, &RawStatus);
 
 		if (Status == VL53LX_ERROR_NONE)
-			Status = VL53LX_SetDistanceMode(Dev, DistanceMode);
-	}
+		Status = VL53LX_run_ref_spad_char(Dev, &RawStatus);
 
 	if (Status == VL53LX_WARNING_REF_SPAD_CHAR_RATE_TOO_HIGH) {
 
@@ -1188,6 +1187,7 @@ VL53LX_Error VL53LX_PerformRefSpadManagement(VL53LX_DEV Dev)
 
 	}
 
+	VL53LX_SetDistanceMode(Dev, DistanceMode);
 	LOG_FUNCTION_END(Status);
 	return Status;
 }
@@ -1225,7 +1225,7 @@ VL53LX_Error VL53LX_SetSmudgeCorrectionMode(VL53LX_DEV Dev,
 		s3 = VL53LX_dynamic_xtalk_correction_single_apply_disable(Dev);
 		break;
 	default:
-		Status = VL53LX_ERROR_MODE_NOT_SUPPORTED;
+		Status = VL53LX_ERROR_INVALID_PARAMS;
 		break;
 	}
 
@@ -1337,8 +1337,12 @@ VL53LX_Error VL53LX_PerformXTalkCalibration(VL53LX_DEV Dev)
 	uint32_t *pLLDataPlaneOffsetKcps;
 	uint32_t sum = 0;
 	uint8_t binok = 0;
+	VL53LX_DistanceModes DistanceMode;
+	uint32_t TimingBudgetMicroSeconds;
 
 	LOG_FUNCTION_START("");
+	Status = VL53LX_GetDistanceMode(Dev, &DistanceMode);
+	Status = VL53LX_GetMeasurementTimingBudgetMicroSeconds(Dev, &TimingBudgetMicroSeconds);
 
 	pPlaneOffsetKcps =
 	&caldata.customer.algo__crosstalk_compensation_plane_offset_kcps;
@@ -1382,6 +1386,8 @@ VL53LX_Error VL53LX_PerformXTalkCalibration(VL53LX_DEV Dev)
 			xtalk.algo__crosstalk_compensation_plane_offset_kcps);
 	}
 
+	Status = VL53LX_SetDistanceMode(Dev, DistanceMode);
+	Status = VL53LX_SetMeasurementTimingBudgetMicroSeconds(Dev, TimingBudgetMicroSeconds);
 	LOG_FUNCTION_END(Status);
 	return Status;
 }
@@ -1395,16 +1401,21 @@ VL53LX_Error VL53LX_SetOffsetCorrectionMode(VL53LX_DEV Dev,
 
 	LOG_FUNCTION_START("");
 
-	if (OffsetCorrectionMode == VL53LX_OFFSETCORRECTIONMODE_PERVCSEL)
-		offset_cor_mode = VL53LX_OFFSETCORRECTIONMODE__PER_VCSEL_OFFSETS;
+	if (OffsetCorrectionMode ==
+		VL53LX_OFFSETCORRECTIONMODE_PERVCSEL)
+		offset_cor_mode =
+				VL53LX_OFFSETCORRECTIONMODE__PER_VCSEL_OFFSETS;
 	else {
-		offset_cor_mode = VL53LX_OFFSETCORRECTIONMODE__MM1_MM2_OFFSETS;
-		if (OffsetCorrectionMode != VL53LX_OFFSETCORRECTIONMODE_STANDARD)
+		offset_cor_mode =
+			VL53LX_OFFSETCORRECTIONMODE__MM1_MM2_OFFSETS;
+		if (OffsetCorrectionMode !=
+			VL53LX_OFFSETCORRECTIONMODE_STANDARD)
 			Status = VL53LX_ERROR_INVALID_PARAMS;
 	}
 
 	if (Status == VL53LX_ERROR_NONE)
-		Status =  VL53LX_set_offset_correction_mode(Dev, offset_cor_mode);
+		Status =  VL53LX_set_offset_correction_mode(Dev,
+				offset_cor_mode);
 
 	LOG_FUNCTION_END(Status);
 	return Status;
@@ -1497,13 +1508,15 @@ VL53LX_Error VL53LX_PerformOffsetSimpleCalibration(VL53LX_DEV Dev,
 
 	if ((Status == VL53LX_ERROR_NONE) && (total_count > 0)) {
 		IncRounding = total_count / 2;
-		meanDistance_mm = (int16_t)((sum_ranging + IncRounding) / total_count);
+		meanDistance_mm = (int16_t)((sum_ranging + IncRounding)
+				/ total_count);
 		offset = (int16_t)CalDistanceMilliMeter - meanDistance_mm;
 		pdev->customer.algo__part_to_part_range_offset_mm = 0;
 		pdev->customer.mm_config__inner_offset_mm = offset;
 		pdev->customer.mm_config__outer_offset_mm = offset;
 
-		Status = VL53LX_set_customer_nvm_managed(Dev, &(pdev->customer));
+		Status = VL53LX_set_customer_nvm_managed(Dev,
+				&(pdev->customer));
 	}
 
 	LOG_FUNCTION_END(Status);
@@ -1776,23 +1789,40 @@ VL53LX_Error VL53LX_GetCalibrationData(VL53LX_DEV Dev,
 
 	pC = &pCalibrationData->customer;
 	pC2 = &cal_data.customer;
-	pC->global_config__spad_enables_ref_0 =pC2->global_config__spad_enables_ref_0;
-	pC->global_config__spad_enables_ref_1 = pC2->global_config__spad_enables_ref_1;
-	pC->global_config__spad_enables_ref_2 = pC2->global_config__spad_enables_ref_2;
-	pC->global_config__spad_enables_ref_3 = pC2->global_config__spad_enables_ref_3;
-	pC->global_config__spad_enables_ref_4 = pC2->global_config__spad_enables_ref_4;
-	pC->global_config__spad_enables_ref_5 = pC2->global_config__spad_enables_ref_5;
-	pC->global_config__ref_en_start_select = pC2->global_config__ref_en_start_select;
-	pC->ref_spad_man__num_requested_ref_spads = pC2->ref_spad_man__num_requested_ref_spads;
-	pC->ref_spad_man__ref_location = pC2->ref_spad_man__ref_location;
-	pC->algo__crosstalk_compensation_x_plane_gradient_kcps = pC2->algo__crosstalk_compensation_x_plane_gradient_kcps;
-	pC->algo__crosstalk_compensation_y_plane_gradient_kcps = pC2->algo__crosstalk_compensation_y_plane_gradient_kcps;
-	pC->ref_spad_char__total_rate_target_mcps = pC2->ref_spad_char__total_rate_target_mcps;
-	pC->algo__part_to_part_range_offset_mm = pC2->algo__part_to_part_range_offset_mm;
-	pC->mm_config__inner_offset_mm = pC2->mm_config__inner_offset_mm;
-	pC->mm_config__outer_offset_mm = pC2->mm_config__outer_offset_mm;
+	pC->global_config__spad_enables_ref_0 =
+		pC2->global_config__spad_enables_ref_0;
+	pC->global_config__spad_enables_ref_1 =
+		pC2->global_config__spad_enables_ref_1;
+	pC->global_config__spad_enables_ref_2 =
+		pC2->global_config__spad_enables_ref_2;
+	pC->global_config__spad_enables_ref_3 =
+		pC2->global_config__spad_enables_ref_3;
+	pC->global_config__spad_enables_ref_4 =
+		pC2->global_config__spad_enables_ref_4;
+	pC->global_config__spad_enables_ref_5 =
+		pC2->global_config__spad_enables_ref_5;
+	pC->global_config__ref_en_start_select =
+		pC2->global_config__ref_en_start_select;
+	pC->ref_spad_man__num_requested_ref_spads =
+		pC2->ref_spad_man__num_requested_ref_spads;
+	pC->ref_spad_man__ref_location =
+		pC2->ref_spad_man__ref_location;
+	pC->algo__crosstalk_compensation_x_plane_gradient_kcps =
+		pC2->algo__crosstalk_compensation_x_plane_gradient_kcps;
+	pC->algo__crosstalk_compensation_y_plane_gradient_kcps =
+		pC2->algo__crosstalk_compensation_y_plane_gradient_kcps;
+	pC->ref_spad_char__total_rate_target_mcps =
+		pC2->ref_spad_char__total_rate_target_mcps;
+	pC->algo__part_to_part_range_offset_mm =
+		pC2->algo__part_to_part_range_offset_mm;
+	pC->mm_config__inner_offset_mm =
+		pC2->mm_config__inner_offset_mm;
+	pC->mm_config__outer_offset_mm =
+		pC2->mm_config__outer_offset_mm;
 
-	pC->algo__crosstalk_compensation_plane_offset_kcps = (uint32_t)(pC2->algo__crosstalk_compensation_plane_offset_kcps);
+	pC->algo__crosstalk_compensation_plane_offset_kcps =
+		(uint32_t)(
+			pC2->algo__crosstalk_compensation_plane_offset_kcps);
 
 	Status = VL53LX_get_current_xtalk_settings(Dev, &xtalk);
 
@@ -1822,6 +1852,7 @@ VL53LX_Error VL53LX_PerformOffsetPerVcselCalibration(VL53LX_DEV Dev,
 	VL53LX_Error Status = VL53LX_ERROR_NONE;
 	int32_t sum_ranging_range_A, sum_ranging_range_B;
 	uint8_t offset_meas_range_A, offset_meas_range_B;
+	uint16_t offset_meas;
 	int16_t Max, UnderMax, OverMax, Repeat;
 	int32_t inloopcount;
 	int32_t IncRounding;
@@ -1878,31 +1909,36 @@ VL53LX_Error VL53LX_PerformOffsetPerVcselCalibration(VL53LX_DEV Dev,
 		sum_ranging_range_A = 0;
 		offset_meas_range_B = 0;
 		sum_ranging_range_B = 0;
-		while ((Status == VL53LX_ERROR_NONE) && (inloopcount < Max) && (inloopcount < OverMax)) {
+		offset_meas = 0; // NOTE: AG - Fix
+		while ((Status == VL53LX_ERROR_NONE) && (inloopcount < Max) &&
+				(offset_meas < OverMax)) { // NOTE: AG - Fix
 			Status = VL53LX_WaitMeasurementDataReady(Dev);
-			if (Status == VL53LX_ERROR_NONE){
-				Status = VL53LX_GetMultiRangingData(Dev, &RangingMeasurementData);
-			}
+			if (Status == VL53LX_ERROR_NONE)
+				Status = VL53LX_GetMultiRangingData(Dev,
+						&RangingMeasurementData);
 			pRange = &(RangingMeasurementData.RangeData[0]);
-			goodmeas = (pRange->RangeStatus == VL53LX_RANGESTATUS_RANGE_VALID);
+			goodmeas = (pRange->RangeStatus ==
+				VL53LX_RANGESTATUS_RANGE_VALID);
 			ics = pdev->ll_state.cfg_internal_stream_count;
 			if ((Status == VL53LX_ERROR_NONE) && goodmeas) {
 				if (ics & 0x01) {
-					sum_ranging_range_A += pRange->RangeMilliMeter;
+					sum_ranging_range_A +=
+						pRange->RangeMilliMeter;
 					offset_meas_range_A++;
 				} else {
-					sum_ranging_range_B += pRange->RangeMilliMeter;
+					sum_ranging_range_B +=
+						pRange->RangeMilliMeter;
 					offset_meas_range_B++;
 				}
-//				inloopcount = offset_meas_range_A + offset_meas_range_B; // NOTE: AG - This causes hang
+				offset_meas = offset_meas_range_A +
+					offset_meas_range_B; // NOTE: AG - Fix
 			}
 			Status = VL53LX_ClearInterruptAndStartMeasurement(Dev);
 			inloopcount++; // NOTE: AG - Fix
 		}
 
-		if (inloopcount < UnderMax){
+		if (inloopcount < UnderMax)
 			Status = VL53LX_ERROR_OFFSET_CAL_NO_SAMPLE_FAIL;
-		}
 
 		VL53LX_StopMeasurement(Dev);
 

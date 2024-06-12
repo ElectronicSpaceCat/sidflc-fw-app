@@ -36,9 +36,9 @@ extern "C" {
 /** VL53LX IMPLEMENTATION minor version */
 #define VL53LX_IMPLEMENTATION_VER_MINOR       2
 /** VL53LX IMPLEMENTATION sub version */
-#define VL53LX_IMPLEMENTATION_VER_SUB         8
+#define VL53LX_IMPLEMENTATION_VER_SUB         10
 /** VL53LX IMPLEMENTATION sub version */
-#define VL53LX_IMPLEMENTATION_VER_REVISION  2578
+#define VL53LX_IMPLEMENTATION_VER_REVISION  2610
 
 /****************************************
  * PRIVATE define do not edit
@@ -251,6 +251,7 @@ typedef struct {
  */
 
 typedef struct {
+
 	uint32_t                             struct_version;
 	VL53LX_CustomerNvmManaged_t          customer;
 	VL53LX_additional_offset_cal_data_t  add_off_cal_data;
@@ -327,10 +328,13 @@ typedef VL53LX_additional_data_t VL53LX_AdditionalData_t;
 typedef struct {
 	VL53LX_LLDriverData_t   LLData;
 	/*!< Low Level Driver data structure */
+
 	VL53LX_LLDriverResults_t llresults;
 	/*!< Low Level Driver data structure */
+
 	VL53LX_DeviceParameters_t CurrentParameters;
 	/*!< Current Device Parameter */
+
 } VL53LX_DevData_t;
 
 

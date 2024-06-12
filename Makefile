@@ -7,7 +7,7 @@ LINKER_DIR := $(PROJ_DIR)/linker
 SDK_ROOT := ../$(PROJ_DIR)/nRF5_SDK_17.1.0_ddde560
 SOFT_DEVICE := s112
 SOFT_DEVICE_VERSION := 7.2.0
-VL53L4CX_ROOT := $(PROJ_DIR)/libs/VL53L4CX_API_v1.2.8
+VL53L4CX_ROOT := $(PROJ_DIR)/libs/VL53L4CX_API_1.2.10
 
 $(OUTPUT_DIRECTORY)/$(TARGETS).out: \
   LINKER_SCRIPT := $(LINKER_DIR)/ble_gcc_nrf52_sd.ld
@@ -16,9 +16,9 @@ $(OUTPUT_DIRECTORY)/$(TARGETS).out: \
 ifeq ($(MMD), 1)
 OPT += -O0
 CFLAGS += -ggdb
-CDEFS += -DMMD
 CDEFS += -DDEBUG
 CDEFS += -DDEBUG_NRF
+CDEFS += -DMMD
 CDEFS += -DCONFIG_JLINK_MONITOR_ENABLED
 CDEFS += -DAPP_TIMER_KEEPS_RTC_ACTIVE=1
 SRC_FILES += \
@@ -32,7 +32,7 @@ OPT += -O0
 CFLAGS += -ggdb
 CDEFS += -DDEBUG
 CDEFS += -DDEBUG_NRF
-$(info -- Building for Halt Febug Mode)
+$(info -- Building for Halt Debug Mode)
 endif
 
 ifeq ($(RELEASE), 1)
