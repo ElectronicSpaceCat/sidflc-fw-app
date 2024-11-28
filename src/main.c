@@ -203,6 +203,7 @@ APP_TIMER_DEF(m_battery_timer_id);
 //              2) BLE_UUID_TOF_SERVICE
 //              3) BLE_UUID_PWR_SERVICE
 
+/**
 // Advertised service UUIDs
 // NOTE: AG - For this device, just advertise the most important service
 static ble_uuid_t m_adv_uuids[] = {
@@ -213,6 +214,7 @@ static ble_uuid_t m_adv_uuids[] = {
 		{ BLE_UUID_TOF_SERVICE, (BLE_UUID_TYPE_VENDOR_BEGIN + 1) } // NOTE: AG - Offset to increment by is determined by order the services are initialized
 //    { BLE_UUID_PWR_SERVICE,                (BLE_UUID_TYPE_VENDOR_BEGIN + 2) } // NOTE: AG - Offset to increment by is determined by order the services are initialized
 };
+*/
 
 // Scan response service UUIDs..do not use more than one 128bit UUID
 //static ble_uuid_t m_sr_uuids[] = {
@@ -1329,9 +1331,9 @@ static void advertising_init(void) {
 	init.advdata.include_appearance = false; // NOTE: AG - Turning this flag off fixed the adv name from being truncated
 	init.advdata.flags = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 
-	// Advertising UUDIs
-	init.advdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-	init.advdata.uuids_complete.p_uuids = m_adv_uuids;
+//	// Advertising UUDIs
+//	init.advdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
+//	init.advdata.uuids_complete.p_uuids = m_adv_uuids;
 
 //	// Scan response UUIDs if more space needed for advertising however
 //	// only one 128bit UUID can be used here

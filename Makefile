@@ -12,6 +12,10 @@ VL53L4CX_ROOT := $(PROJ_DIR)/libs/VL53L4CX_API_1.2.10
 $(OUTPUT_DIRECTORY)/$(TARGETS).out: \
   LINKER_SCRIPT := $(LINKER_DIR)/ble_gcc_nrf52_sd.ld
 
+#ifneq (,$(filter 1,$(MMD)$(HALT)$(RELEASE))) # Or condition if equal to 1
+$(info -- SoftDevice $(SOFT_DEVICE) version $(SOFT_DEVICE_VERSION))
+#endif
+
 # Optimization flags
 ifeq ($(MMD), 1)
 OPT += -O0
@@ -39,8 +43,6 @@ ifeq ($(RELEASE), 1)
 OPT += -Os -g3
 $(info -- Building for Release)
 endif
-
-$(info -- SoftDevice set to $(SOFT_DEVICE))
 
 # Uncomment the line below to enable link time optimization
 #OPT += -flto
